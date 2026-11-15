@@ -149,7 +149,15 @@ class Board:
                             self.ugs = u
                         else:
                             self.uds = u
-                        await self.sleep(delay_ms)
+                        # задержка кусками: во время неё PROG не реже раза в 0,5 с
+                        left = delay_ms
+                        while left > 0:
+                            chunk = min(left, 500 * self.args.speed)
+                            await self.sleep(chunk)
+                            left -= chunk
+                            if time.monotonic() - last_msg > 0.5:
+                                self.send('PROG;%d;%d' % (n, total))
+                                last_msg = time.monotonic()
                         i, flags = await self.measure_point(window_ms)
                         n += 1
                         if abs(i) > ilim:
@@ -211,8 +219,9 @@ class Board:
                 self.ugs, self.uds = ugs, uds
                 self.send('ACK;SETV;%.4f;%.4f' % (ugs, uds))
             elif cmd == 'ZERO':
-                if self.sweep_task:
+                if self.sweep_task and not self.sweep_task.done():
                     self.sweep_task.cancel()
+                    self.send('ABORT')
                 self.safe()
                 self.send('ACK;ZERO')
             elif cmd == 'RANGE':

@@ -32,6 +32,15 @@ DeviceClient::DeviceClient(QObject *parent) : QObject(parent)
     });
 }
 
+DeviceClient::~DeviceClient()
+{
+    // При разрушении сокет может сообщить об отключении: к этому моменту
+    // таймеры уже удалены, поэтому сначала отключаем все сигналы.
+    m_sock.disconnect(this);
+    disconnect();
+    m_sock.abort();
+}
+
 void DeviceClient::connectToDevice(const QString &host, quint16 port)
 {
     m_sock.abort();

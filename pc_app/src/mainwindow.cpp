@@ -90,7 +90,10 @@ MainWindow::MainWindow(QWidget *parent)
     setMode(Mode::Offline);
 }
 
-MainWindow::~MainWindow() = default;
+MainWindow::~MainWindow()
+{
+    m_dev.disconnect(this);
+}
 
 // ---------------------------------------------------------------- интерфейс
 

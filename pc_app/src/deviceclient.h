@@ -12,6 +12,7 @@ class DeviceClient : public QObject
     Q_OBJECT
 public:
     explicit DeviceClient(QObject *parent = nullptr);
+    ~DeviceClient() override;
 
     void connectToDevice(const QString &host, quint16 port);
     void disconnectFromDevice();

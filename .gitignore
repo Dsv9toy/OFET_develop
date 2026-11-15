@@ -21,3 +21,7 @@ firmware/**/.settings/
 # Python
 __pycache__/
 *.pyc
+
+# Симулятор прошивки
+firmware/host_sim/ofet_sim
+firmware/host_sim/ofet_sim_relay7
