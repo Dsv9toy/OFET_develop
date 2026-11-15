@@ -387,10 +387,15 @@ async def main():
     server = await asyncio.start_server(board.client, args.host, args.port)
     loop = asyncio.get_running_loop()
     try:
-        await loop.create_datagram_endpoint(lambda: Discover(args.host, args.port),
-                                            local_addr=('0.0.0.0', DISCOVER_PORT))
-    except OSError as e:
-        print('UDP-поиск недоступен (порт %d занят?): %s' % (DISCOVER_PORT, e))
+        import socket
+        us = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        us.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)   # порт может быть занят другой программой
+        us.bind(('0.0.0.0', DISCOVER_PORT))
+        await loop.create_datagram_endpoint(lambda: Discover(args.host, args.port), sock=us)
+    except OSError:
+        print('Замечание: UDP-порт %d занят другой программой, кнопка «Найти плату» эмулятор не найдёт.\n'
+              'Это не мешает работе: в программе впишите IP 127.0.0.1 и порт %d вручную.'
+              % (DISCOVER_PORT, args.port))
     print('Эмулятор слушает %s:%d, модель %s-типа, ускорение x%g'
           % (args.host, args.port, args.type, args.speed))
     async with server:
