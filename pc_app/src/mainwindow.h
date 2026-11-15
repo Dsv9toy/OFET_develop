@@ -16,6 +16,7 @@ class QPushButton;
 class QLabel;
 class QProgressBar;
 class QPlainTextEdit;
+class QUdpSocket;
 
 class MainWindow : public QMainWindow
 {
@@ -43,6 +44,9 @@ private slots:
     void onStartTransfer();
     void onStartOutput();
     void onBrowseFolder();
+    void onFindBoard();
+    void onDiscoverReply();
+    void onDiscoverFinished();
 
 private:
     enum class Mode { Offline, Idle, Starting, Running, Paused };
@@ -79,6 +83,9 @@ private:
     QSpinBox *m_port = nullptr;
     QPushButton *m_btnConnect = nullptr;
     QPushButton *m_btnPing = nullptr;
+    QPushButton *m_btnFind = nullptr;
+    QUdpSocket *m_udp = nullptr;
+    QStringList m_found;      // "IP:порт" найденных плат
     QLabel *m_led = nullptr;
 
     // Состояние и индикаторы

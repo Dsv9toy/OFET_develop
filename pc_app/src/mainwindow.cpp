@@ -11,6 +11,10 @@
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QInputDialog>
+#include <QNetworkInterface>
+#include <QUdpSocket>
+#include <QTimer>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -102,6 +106,9 @@ void MainWindow::buildUi()
     m_port->setValue(5000);
     m_btnConnect = new QPushButton("Подключиться");
     m_btnPing = new QPushButton("Проверка связи");
+    m_btnFind = new QPushButton("Найти плату");
+    m_btnFind->setToolTip("Поиск платы в сети (широковещательный запрос). "
+                          "При прямом подключении кабелем адрес платы 192.168.1.10");
     m_led = new QLabel;
     m_led->setFixedSize(18, 18);
     auto *lLink = new QGridLayout(gLink);
@@ -109,7 +116,8 @@ void MainWindow::buildUi()
     lLink->addWidget(m_ip, 0, 1);
     lLink->addWidget(new QLabel("Порт:"), 0, 2);
     lLink->addWidget(m_port, 0, 3);
-    lLink->addWidget(m_btnConnect, 1, 0, 1, 2);
+    lLink->addWidget(m_btnFind, 1, 0);
+    lLink->addWidget(m_btnConnect, 1, 1);
     lLink->addWidget(m_btnPing, 1, 2);
     lLink->addWidget(m_led, 1, 3, Qt::AlignCenter);
 
@@ -311,6 +319,7 @@ void MainWindow::buildUi()
 
     // --- Сигналы
     connect(m_btnConnect, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
+    connect(m_btnFind, &QPushButton::clicked, this, &MainWindow::onFindBoard);
     connect(m_btnPing, &QPushButton::clicked, this, [this] { m_dev.send("PING"); });
     connect(m_btnMeas, &QPushButton::clicked, this, [this] { m_dev.send("MEAS?"); });
     connect(m_btnSel, &QPushButton::clicked, this, &MainWindow::onSelect);
@@ -336,6 +345,7 @@ void MainWindow::updateUi()
     m_ip->setEnabled(!online);
     m_port->setEnabled(!online);
     m_btnPing->setEnabled(online);
+    m_btnFind->setEnabled(!online && m_udp == nullptr);
     m_btnMeas->setEnabled(idle);
     m_btnSel->setEnabled(idle);
     m_range->setEnabled(!busy);
@@ -529,6 +539,91 @@ void MainWindow::onBrowseFolder()
         m_folder->setText(QDir::toNativeSeparators(d));
         openLogFile();
     }
+}
+
+// ---------------------------------------------------------------- поиск платы
+
+// Плата слушает UDP-порт 5001 и на строку DISCOVER отвечает OFET;<IP>;<порт>.
+static constexpr quint16 kDiscoverPort = 5001;
+
+void MainWindow::onFindBoard()
+{
+    m_found.clear();
+    m_udp = new QUdpSocket(this);
+    if (!m_udp->bind(QHostAddress(QHostAddress::AnyIPv4), 0)) {
+        log("Поиск: не удалось открыть UDP-сокет: " + m_udp->errorString());
+        m_udp->deleteLater();
+        m_udp = nullptr;
+        return;
+    }
+    connect(m_udp, &QUdpSocket::readyRead, this, &MainWindow::onDiscoverReply);
+
+    // Широковещательный запрос в каждую сеть ПК, общий broadcast и локальный эмулятор
+    QList<QHostAddress> targets{QHostAddress::Broadcast, QHostAddress::LocalHost};
+    for (const QNetworkInterface &nif : QNetworkInterface::allInterfaces()) {
+        if (!(nif.flags() & QNetworkInterface::IsUp) || !(nif.flags() & QNetworkInterface::IsRunning))
+            continue;
+        for (const QNetworkAddressEntry &e : nif.addressEntries())
+            if (e.ip().protocol() == QAbstractSocket::IPv4Protocol && !e.broadcast().isNull())
+                targets.append(e.broadcast());
+    }
+    for (const QHostAddress &a : targets)
+        m_udp->writeDatagram("DISCOVER\n", a, kDiscoverPort);
+
+    log("Поиск платы в сети...");
+    setState("Поиск платы...");
+    setLed("#fdd835");
+    updateUi();
+    QTimer::singleShot(1500, this, &MainWindow::onDiscoverFinished);
+}
+
+void MainWindow::onDiscoverReply()
+{
+    while (m_udp && m_udp->hasPendingDatagrams()) {
+        QByteArray d;
+        d.resize(int(m_udp->pendingDatagramSize()));
+        QHostAddress from;
+        m_udp->readDatagram(d.data(), d.size(), &from);
+        const QStringList f = QString::fromLatin1(d).trimmed().split(';');
+        if (f.value(0) != "OFET" || f.size() < 3)
+            continue;
+        // Адрес берём из ответа; если он пустой, то адрес отправителя
+        QHostAddress ip(f[1]);
+        if (ip.isNull())
+            ip = QHostAddress(from.toIPv4Address());
+        const QString entry = ip.toString() + ":" + f[2];
+        if (!m_found.contains(entry))
+            m_found.append(entry);
+    }
+}
+
+void MainWindow::onDiscoverFinished()
+{
+    if (m_udp) {
+        onDiscoverReply();
+        m_udp->deleteLater();
+        m_udp = nullptr;
+    }
+    setLed(m_mode == Mode::Offline ? "#9e9e9e" : "#43a047");
+    QString pick;
+    if (m_found.isEmpty()) {
+        log("Плата не найдена");
+        setState("Плата не найдена. При прямом подключении кабелем адрес платы 192.168.1.10", true);
+    } else if (m_found.size() == 1) {
+        pick = m_found.first();
+    } else {
+        bool ok = false;
+        pick = QInputDialog::getItem(this, "Найдено несколько плат", "Выберите плату:", m_found, 0, false, &ok);
+        if (!ok)
+            pick.clear();
+    }
+    if (!pick.isEmpty()) {
+        m_ip->setText(pick.section(':', 0, 0));
+        m_port->setValue(pick.section(':', 1, 1).toInt());
+        log("Найдена плата: " + pick);
+        setState("Найдена плата " + pick + ". Нажмите «Подключиться»");
+    }
+    updateUi();
 }
 
 // ---------------------------------------------------------------- связь

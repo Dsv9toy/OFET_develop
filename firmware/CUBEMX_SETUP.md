@@ -63,27 +63,19 @@ System Clock Mux = PLLCLK, AHB Prescaler = 1, APB1 = 4, APB2 = 2. CubeMX сам 
 - I2C = `I2C`, выводы по выбранному варианту.
 - Speed Mode = `Fast Mode`, 400 кГц (на время отладки можно 100 кГц, Standard Mode).
 
-## 4. Analog: ADC1 (Uтиа и Uсм)
+## 4. Analog: ADC3 (Uтиа и Uсм)
 
-**TBD: какие две сети идут на Uтиа и Uсм.** Аналоговые сети на схеме платы (имя сети на схеме не совпадает с номером канала):
+| Сигнал | Вывод | Канал | Сеть на схеме |
+|---|---|---|---|
+| Uтиа (выход ФНЧ) | PF6 | ADC3_IN4 | ADC3_IN1 |
+| Uсм | PF7 | ADC3_IN5 | ADC3_IN2 |
 
-| Сеть на схеме | Вывод | Канал АЦП |
-|---|---|---|
-| ADC1_IN1 | PB1 | ADC12_IN9 |
-| ADC1_IN2 | PB0 | ADC12_IN8 |
-| ADC2_IN1 | PC2 | ADC123_IN12 |
-| ADC2_IN2 | PC3 | ADC123_IN13 |
-| ADC3_IN1 | PF6 | ADC3_IN4 |
-| ADC3_IN2 | PF7 | ADC3_IN5 |
-| ADC3_IN7 | PF9 | ADC3_IN7 |
-| ADC3_IN9 | PF3 | ADC3_IN9 |
-
-Если оба сигнала попадают на ADC1/ADC2 (PB0, PB1, PC2, PC3), используем ADC1; если на PF, то ADC3 (настройки те же).
-
-- Включить два канала (Utia, Ubias).
-- Scan Conversion Mode = Enabled, Number Of Conversion = 2, Rank 1 = канал Uтиа, Rank 2 = канал Uсм, Sampling Time = `480 Cycles`.
-- External Trigger = `Timer 3 Trigger Out event`, Rising edge. Continuous Conversion = Disabled. DMA Continuous Requests = Enabled.
-- DMA Settings: Add -> ADC1, Mode = `Circular`, Data Width = Half Word / Half Word.
+- ADC3: отметить IN4 и IN5.
+- Parameter Settings: Clock Prescaler = PCLK2 / 4, Resolution = 12 bits, Scan Conversion Mode = Enabled, Continuous Conversion Mode = Disabled, DMA Continuous Requests = Enabled, End Of Conversion Selection = EOC flag at the end of all conversions.
+- Number Of Conversion = 2. Rank 1 = Channel 4 (Uтиа), Rank 2 = Channel 5 (Uсм), Sampling Time = `480 Cycles` у обоих.
+- External Trigger Conversion Source = `Timer 3 Trigger Out event`, Edge = Trigger detection on the rising edge.
+- DMA Settings: Add -> ADC3 (DMA2 Stream 0), Mode = `Circular`, Increment Address = Memory, Data Width = Half Word / Half Word.
+- NVIC: DMA2 stream0 global interrupt включён (CubeMX включает сам).
 
 ## 5. Timers
 

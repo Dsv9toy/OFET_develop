@@ -7,8 +7,10 @@ TCP-сервер, который отвечает по протоколу из C
 
 Запуск:  python ofet_emulator.py            (порт 5000, p-тип)
          python ofet_emulator.py --type n --port 5000 --speed 10
+         python ofet_emulator.py --host 0.0.0.0   (доступен с других ПК сети)
 --speed 10 ускоряет все паузы в 10 раз.
-В программе ПК указать IP 127.0.0.1 и тот же порт.
+В программе ПК указать IP 127.0.0.1 и тот же порт или нажать «Найти плату»
+(эмулятор отвечает на UDP-поиск, порт 5001).
 """
 
 import argparse
@@ -336,6 +338,35 @@ class Board:
                 self.last_rx = time.monotonic()
 
 
+DISCOVER_PORT = 5001
+
+
+class Discover(asyncio.DatagramProtocol):
+    """Ответ на UDP-поиск: DISCOVER -> OFET;<IP>;<порт>."""
+
+    def __init__(self, host, port):
+        self.host, self.port = host, port
+
+    def connection_made(self, transport):
+        self.transport = transport
+
+    def datagram_received(self, data, addr):
+        if data.strip() != b'DISCOVER':
+            return
+        ip = self.host
+        if ip in ('0.0.0.0', ''):
+            # Узнаём свой адрес в сети запрашивающего
+            import socket
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                s.connect((addr[0], 1))
+                ip = s.getsockname()[0]
+            finally:
+                s.close()
+        print('Поиск от %s, отвечаем %s:%d' % (addr[0], ip, self.port))
+        self.transport.sendto(('OFET;%s;%d\n' % (ip, self.port)).encode('ascii'), addr)
+
+
 async def main():
     ap = argparse.ArgumentParser(description='Эмулятор платы ВАХ OFET')
     ap.add_argument('--port', type=int, default=5000)
@@ -345,6 +376,12 @@ async def main():
     args = ap.parse_args()
     board = Board(args)
     server = await asyncio.start_server(board.client, args.host, args.port)
+    loop = asyncio.get_running_loop()
+    try:
+        await loop.create_datagram_endpoint(lambda: Discover(args.host, args.port),
+                                            local_addr=('0.0.0.0', DISCOVER_PORT))
+    except OSError as e:
+        print('UDP-поиск недоступен (порт %d занят?): %s' % (DISCOVER_PORT, e))
     print('Эмулятор слушает %s:%d, модель %s-типа, ускорение x%g'
           % (args.host, args.port, args.type, args.speed))
     async with server:
