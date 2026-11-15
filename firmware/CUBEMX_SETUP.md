@@ -13,15 +13,18 @@
 ## 1. System Core
 
 - **SYS**: Debug = `Serial Wire` (иначе после прошивки отладчик перестанет подключаться). Timebase Source = `SysTick`.
-- **RCC**: High Speed Clock (HSE) = `Crystal/Ceramic Resonator`. **TBD: частота кварца МК** (надпись на кварце рядом с МК, обычно 8 или 25 МГц).
+- **RCC**: High Speed Clock (HSE) = `Crystal/Ceramic Resonator` (кварц BQ2 8 МГц на PH0/PH1). Low Speed Clock (LSE) = `Crystal/Ceramic Resonator` (BQ1 32,768 кГц на PC14/PC15, батарея CR1220 на VBAT; часы RTC пока не нужны, можно оставить Disable).
 - **GPIO** (выходы, начальный уровень Low, если не сказано иное):
-  - PA3 = `GPIO_Output`, метка `ETH_NRST`, начальный уровень **High** (сброс PHY, активный низкий).
+  - PC13 = `GPIO_Output`, метка `LED` (светодиод на плате, мигание = прошивка жива).
+  - PA3 = `GPIO_Output`, метка `ETH_NRST` (на схеме EPHY_RST, подтяжка R42 4,7 кОм к 3,3 В), начальный уровень **High** (сброс PHY, активный низкий).
   - PA6 = `GPIO_Input`, метка `ETH_NINT` (прерывание PHY, пока не используется).
   - 6 линий коммутатора транзисторов: метки `SEL_CH1` ... `SEL_CH6`, Output Push Pull, Pull-down, начальный уровень Low. **TBD: выводы.**
   - Линии реле диапазонов: `RNG_1` ... `RNG_7` (или 14 для бистабильных). **TBD: выводы.**
   - Включение питания ±18 В (если есть): `PWR18_EN`, начальный уровень Low. **TBD.**
 
 ## 2. Тактирование (Clock Configuration)
+
+Кварц 8 МГц: PLL Source = HSE, PLLM = 8, PLLN = 336, PLLP = 2, PLLQ = 7.
 
 Цель: SYSCLK = HCLK = 168 МГц, APB1 = 42 МГц, APB2 = 84 МГц, 48 МГц для USB не нужен.
 
@@ -50,27 +53,44 @@ System Clock Mux = PLLCLK, AHB Prescaler = 1, APB1 = 4, APB2 = 2. CubeMX сам 
 | ETH_TXD1 | PB13 |
 
   CubeMX по умолчанию может поставить TX_EN/TXD0/TXD1 на PG11/PG13/PG14. Нужно вручную щёлкнуть по PB11, PB12, PB13 на картинке корпуса и выбрать соответствующие функции ETH.
-- Parameter Settings: Ethernet MAC Address оставить по умолчанию (`00:80:E1:00:00:00`), Rx Mode = `Interrupt Mode`, PHY Address: **0** (у LAN8710A адрес задаётся выводом PHYAD0 при сбросе, обычно 0; прошивка при старте проверит адреса 0...31).
+- Parameter Settings: Ethernet MAC Address оставить по умолчанию (`00:80:E1:00:00:00`), Rx Mode = `Interrupt Mode`, PHY Address: **0** (по схеме PHYAD0...PHYAD2 подтянуты к GND резисторами R62, R64, R68).
 - Advanced Parameters / PHY: если CubeMX спрашивает драйвер, выбрать `LAN8742` (регистры совместимы с LAN8710A).
 - NVIC: включить `Ethernet global interrupt`.
 - GPIO Settings для всех выводов ETH: Maximum output speed = `Very High`.
 
-### I2C1 (ЦАП AD5693R)
-- I2C1 = `I2C`, выводы PB6 = SCL, PB7 = SDA (CubeMX может поставить PB8/PB9, перенести вручную).
+### I2C (ЦАП AD5693R)
+**TBD.** На этой плате PB6 занят сетью SPI_SS, поэтому I2C1 на PB6/PB7 из исходного проекта не подходит. Возможные варианты: I2C1 на PB8 (SCL) / PB9 (SDA), если они свободны; I2C2 на PF1 (SCL) / PF0 (SDA), это сети L6 / L5.
+- I2C = `I2C`, выводы по выбранному варианту.
 - Speed Mode = `Fast Mode`, 400 кГц (на время отладки можно 100 кГц, Standard Mode).
 
 ## 4. Analog: ADC1 (Uтиа и Uсм)
 
-**TBD: выводы.** Выводы PA1, PA2, PA3, PA6, PA7, PC1, PC4, PC5 заняты Ethernet. Для АЦП остаются, например, PA0 (IN0), PA4 (IN4), PA5 (IN5), PB0 (IN8), PB1 (IN9), PC0 (IN10), PC2 (IN12), PC3 (IN13).
+**TBD: какие две сети идут на Uтиа и Uсм.** Аналоговые сети на схеме платы (имя сети на схеме не совпадает с номером канала):
+
+| Сеть на схеме | Вывод | Канал АЦП |
+|---|---|---|
+| ADC1_IN1 | PB1 | ADC12_IN9 |
+| ADC1_IN2 | PB0 | ADC12_IN8 |
+| ADC2_IN1 | PC2 | ADC123_IN12 |
+| ADC2_IN2 | PC3 | ADC123_IN13 |
+| ADC3_IN1 | PF6 | ADC3_IN4 |
+| ADC3_IN2 | PF7 | ADC3_IN5 |
+| ADC3_IN7 | PF9 | ADC3_IN7 |
+| ADC3_IN9 | PF3 | ADC3_IN9 |
+
+Если оба сигнала попадают на ADC1/ADC2 (PB0, PB1, PC2, PC3), используем ADC1; если на PF, то ADC3 (настройки те же).
 
 - Включить два канала (Utia, Ubias).
 - Scan Conversion Mode = Enabled, Number Of Conversion = 2, Rank 1 = канал Uтиа, Rank 2 = канал Uсм, Sampling Time = `480 Cycles`.
-- External Trigger = `Timer 2 Trigger Out event`, Rising edge. Continuous Conversion = Disabled. DMA Continuous Requests = Enabled.
+- External Trigger = `Timer 3 Trigger Out event`, Rising edge. Continuous Conversion = Disabled. DMA Continuous Requests = Enabled.
 - DMA Settings: Add -> ADC1, Mode = `Circular`, Data Width = Half Word / Half Word.
 
 ## 5. Timers
 
-- **TIM2**: Clock Source = Internal Clock. Prescaler = 83 (84 МГц / 84 = 1 МГц), Counter Period = 199 (5 кГц, т. е. 5000 пар отсчётов в секунду; за 20 мс ровно 100 отсчётов). Trigger Event Selection (TRGO) = `Update Event`.
+- **TIM3** (TIM2 не берём: на PA0 по схеме вход Frequency = TIM2_ETR): Clock Source = Internal Clock. Prescaler = 83 (84 МГц / 84 = 1 МГц), Counter Period = 199 (5 кГц, т. е. 5000 пар отсчётов в секунду; за 20 мс ровно 100 отсчётов). Trigger Event Selection (TRGO) = `Update Event`.
+
+### USART6 (отладочный вывод, необязательно)
+- На схеме PC6 = PC_TX, PC7 = PC_RX. USART6 = Asynchronous, 115200, 8N1. Через него прошивка будет печатать отладочные сообщения (нужен USB-UART переходник).
 
 ## 6. Middleware: LwIP
 
