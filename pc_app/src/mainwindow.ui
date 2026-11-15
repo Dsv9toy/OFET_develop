@@ -1,0 +1,1035 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1200</width>
+    <height>820</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Измерение ВАХ OFET</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="mainLayout" stretch="0,1">
+    <item>
+     <widget class="QScrollArea" name="leftScroll">
+      <property name="widgetResizable">
+       <bool>true</bool>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>560</width>
+        <height>0</height>
+       </size>
+      </property>
+      <widget class="QWidget" name="leftContent">
+       <layout class="QVBoxLayout" name="leftLayout">
+        <item>
+         <widget class="QGroupBox" name="linkGroup">
+          <property name="title">
+           <string>Связь с платой</string>
+          </property>
+          <layout class="QGridLayout" name="linkLayout">
+           <item row="0" column="0">
+            <widget class="QLabel" name="ipLabel">
+             <property name="text">
+              <string>IP-адрес:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLineEdit" name="ipEdit">
+             <property name="text">
+              <string>192.168.1.10</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="2">
+            <widget class="QLabel" name="portLabel">
+             <property name="text">
+              <string>Порт:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="3">
+            <widget class="QSpinBox" name="portSpin">
+             <property name="minimum">
+              <number>1</number>
+             </property>
+             <property name="maximum">
+              <number>65535</number>
+             </property>
+             <property name="value">
+              <number>5000</number>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QPushButton" name="findButton">
+             <property name="text">
+              <string>Найти плату</string>
+             </property>
+             <property name="toolTip">
+              <string>Поиск платы в сети. При прямом подключении кабелем адрес платы 192.168.1.10</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QPushButton" name="connectButton">
+             <property name="text">
+              <string>Подключиться</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="2">
+            <widget class="QPushButton" name="pingButton">
+             <property name="text">
+              <string>Проверка связи</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="3">
+            <widget class="QLabel" name="linkLed">
+             <property name="minimumSize">
+              <size>
+               <width>18</width>
+               <height>18</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>18</width>
+               <height>18</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="transistorGroup">
+          <property name="title">
+           <string>Транзистор и диапазон</string>
+          </property>
+          <layout class="QGridLayout" name="transistorLayout">
+           <item row="0" column="0">
+            <widget class="QLabel" name="typeLabel">
+             <property name="text">
+              <string>Тип:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QComboBox" name="typeCombo">
+             <item>
+              <property name="text">
+               <string>p-тип</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>n-тип</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item row="0" column="2">
+            <widget class="QLabel" name="rangeLabel">
+             <property name="text">
+              <string>Диапазон:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="3">
+            <widget class="QComboBox" name="rangeCombo">
+             <item>
+              <property name="text">
+               <string>Авто</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>1 (±1,5 мА)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>2 (±150 мкА)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>3 (±15 мкА)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>4 (±1,5 мкА)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>5 (±150 нА)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>6 (±15 нА)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>7 (±1,5 нА)</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="numberLabel">
+             <property name="text">
+              <string>Номер:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QSpinBox" name="transistorSpin">
+             <property name="minimum">
+              <number>1</number>
+             </property>
+             <property name="maximum">
+              <number>5</number>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="2">
+            <widget class="QPushButton" name="selectButton">
+             <property name="text">
+              <string>Выбрать</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="3">
+            <widget class="QLabel" name="selectedLabel">
+             <property name="text">
+              <string>не выбран</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="transferGroup">
+          <property name="title">
+           <string>Проходная характеристика Iс(Uзи)</string>
+          </property>
+          <layout class="QGridLayout" name="transferLayout">
+           <item row="0" column="0">
+            <widget class="QLabel" name="tUdsLabel">
+             <property name="text">
+              <string>Uси:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QDoubleSpinBox" name="tUdsSpin">
+             <property name="suffix">
+              <string> В</string>
+             </property>
+             <property name="decimals">
+              <number>3</number>
+             </property>
+             <property name="minimum">
+              <double>-18.0</double>
+             </property>
+             <property name="maximum">
+              <double>15.0</double>
+             </property>
+             <property name="singleStep">
+              <double>0.1</double>
+             </property>
+             <property name="value">
+              <double>-5.0</double>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="tUgsStartLabel">
+             <property name="text">
+              <string>Uзи начало:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QDoubleSpinBox" name="tUgsStartSpin">
+             <property name="suffix">
+              <string> В</string>
+             </property>
+             <property name="decimals">
+              <number>3</number>
+             </property>
+             <property name="minimum">
+              <double>-18.0</double>
+             </property>
+             <property name="maximum">
+              <double>15.0</double>
+             </property>
+             <property name="singleStep">
+              <double>0.1</double>
+             </property>
+             <property name="value">
+              <double>0.0</double>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="2">
+            <widget class="QLabel" name="tUgsStopLabel">
+             <property name="text">
+              <string>конец:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="3">
+            <widget class="QDoubleSpinBox" name="tUgsStopSpin">
+             <property name="suffix">
+              <string> В</string>
+             </property>
+             <property name="decimals">
+              <number>3</number>
+             </property>
+             <property name="minimum">
+              <double>-18.0</double>
+             </property>
+             <property name="maximum">
+              <double>15.0</double>
+             </property>
+             <property name="singleStep">
+              <double>0.1</double>
+             </property>
+             <property name="value">
+              <double>-16.0</double>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="4">
+            <widget class="QLabel" name="tUgsStepLabel">
+             <property name="text">
+              <string>шаг:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="5">
+            <widget class="QDoubleSpinBox" name="tUgsStepSpin">
+             <property name="suffix">
+              <string> В</string>
+             </property>
+             <property name="decimals">
+              <number>3</number>
+             </property>
+             <property name="minimum">
+              <double>0.001</double>
+             </property>
+             <property name="maximum">
+              <double>33.0</double>
+             </property>
+             <property name="singleStep">
+              <double>0.01</double>
+             </property>
+             <property name="value">
+              <double>0.1</double>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="outputGroup">
+          <property name="title">
+           <string>Выходная характеристика Iс(Uси)</string>
+          </property>
+          <layout class="QGridLayout" name="outputLayout">
+           <item row="0" column="0">
+            <widget class="QLabel" name="oUgsStartLabel">
+             <property name="text">
+              <string>Uзи начало:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QDoubleSpinBox" name="oUgsStartSpin">
+             <property name="suffix">
+              <string> В</string>
+             </property>
+             <property name="decimals">
+              <number>3</number>
+             </property>
+             <property name="minimum">
+              <double>-18.0</double>
+             </property>
+             <property name="maximum">
+              <double>15.0</double>
+             </property>
+             <property name="singleStep">
+              <double>0.1</double>
+             </property>
+             <property name="value">
+              <double>0.0</double>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="2">
+            <widget class="QLabel" name="oUgsStopLabel">
+             <property name="text">
+              <string>конец:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="3">
+            <widget class="QDoubleSpinBox" name="oUgsStopSpin">
+             <property name="suffix">
+              <string> В</string>
+             </property>
+             <property name="decimals">
+              <number>3</number>
+             </property>
+             <property name="minimum">
+              <double>-18.0</double>
+             </property>
+             <property name="maximum">
+              <double>15.0</double>
+             </property>
+             <property name="singleStep">
+              <double>0.1</double>
+             </property>
+             <property name="value">
+              <double>-16.0</double>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="4">
+            <widget class="QLabel" name="oUgsStepLabel">
+             <property name="text">
+              <string>шаг:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="5">
+            <widget class="QDoubleSpinBox" name="oUgsStepSpin">
+             <property name="suffix">
+              <string> В</string>
+             </property>
+             <property name="decimals">
+              <number>3</number>
+             </property>
+             <property name="minimum">
+              <double>0.001</double>
+             </property>
+             <property name="maximum">
+              <double>33.0</double>
+             </property>
+             <property name="singleStep">
+              <double>0.01</double>
+             </property>
+             <property name="value">
+              <double>4.0</double>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="oUdsStartLabel">
+             <property name="text">
+              <string>Uси начало:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QDoubleSpinBox" name="oUdsStartSpin">
+             <property name="suffix">
+              <string> В</string>
+             </property>
+             <property name="decimals">
+              <number>3</number>
+             </property>
+             <property name="minimum">
+              <double>-18.0</double>
+             </property>
+             <property name="maximum">
+              <double>15.0</double>
+             </property>
+             <property name="singleStep">
+              <double>0.1</double>
+             </property>
+             <property name="value">
+              <double>0.0</double>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="2">
+            <widget class="QLabel" name="oUdsStopLabel">
+             <property name="text">
+              <string>конец:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="3">
+            <widget class="QDoubleSpinBox" name="oUdsStopSpin">
+             <property name="suffix">
+              <string> В</string>
+             </property>
+             <property name="decimals">
+              <number>3</number>
+             </property>
+             <property name="minimum">
+              <double>-18.0</double>
+             </property>
+             <property name="maximum">
+              <double>15.0</double>
+             </property>
+             <property name="singleStep">
+              <double>0.1</double>
+             </property>
+             <property name="value">
+              <double>-10.0</double>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="4">
+            <widget class="QLabel" name="oUdsStepLabel">
+             <property name="text">
+              <string>шаг:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="5">
+            <widget class="QDoubleSpinBox" name="oUdsStepSpin">
+             <property name="suffix">
+              <string> В</string>
+             </property>
+             <property name="decimals">
+              <number>3</number>
+             </property>
+             <property name="minimum">
+              <double>0.001</double>
+             </property>
+             <property name="maximum">
+              <double>33.0</double>
+             </property>
+             <property name="singleStep">
+              <double>0.01</double>
+             </property>
+             <property name="value">
+              <double>0.1</double>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="paramGroup">
+          <property name="title">
+           <string>Параметры измерения</string>
+          </property>
+          <layout class="QFormLayout" name="paramLayout">
+           <item row="0" column="0">
+            <widget class="QLabel" name="delayLabel">
+             <property name="text">
+              <string>Задержка в точке:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QSpinBox" name="delaySpin">
+             <property name="suffix">
+              <string> мс</string>
+             </property>
+             <property name="minimum">
+              <number>100</number>
+             </property>
+             <property name="maximum">
+              <number>60000</number>
+             </property>
+             <property name="singleStep">
+              <number>50</number>
+             </property>
+             <property name="value">
+              <number>200</number>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="windowLabel">
+             <property name="text">
+              <string>Окно усреднения:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QSpinBox" name="windowSpin">
+             <property name="suffix">
+              <string> мс</string>
+             </property>
+             <property name="minimum">
+              <number>20</number>
+             </property>
+             <property name="maximum">
+              <number>2000</number>
+             </property>
+             <property name="singleStep">
+              <number>20</number>
+             </property>
+             <property name="value">
+              <number>100</number>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel" name="ilimLabel">
+             <property name="text">
+              <string>Ограничение тока:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QDoubleSpinBox" name="ilimSpin">
+             <property name="suffix">
+              <string> мкА</string>
+             </property>
+             <property name="decimals">
+              <number>3</number>
+             </property>
+             <property name="minimum">
+              <double>0.001</double>
+             </property>
+             <property name="maximum">
+              <double>1500.0</double>
+             </property>
+             <property name="value">
+              <double>1000.0</double>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QCheckBox" name="reverseCheck">
+             <property name="text">
+              <string>Обратная развёртка (туда и обратно)</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0">
+            <widget class="QLabel" name="nameLabel">
+             <property name="text">
+              <string>Название измерения:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="1">
+            <widget class="QLineEdit" name="nameEdit">
+             <property name="placeholderText">
+              <string>например, Obrazec1</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="0">
+            <widget class="QLabel" name="folderLabel">
+             <property name="text">
+              <string>Папка:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="1">
+            <layout class="QHBoxLayout" name="folderLayout">
+             <item>
+              <widget class="QLineEdit" name="folderEdit"/>
+             </item>
+             <item>
+              <widget class="QPushButton" name="folderButton">
+               <property name="text">
+                <string>Обзор...</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <spacer name="leftSpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>0</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+    <item>
+     <layout class="QVBoxLayout" name="rightLayout">
+      <item>
+       <widget class="QGroupBox" name="stateGroup">
+        <property name="title">
+         <string>Состояние</string>
+        </property>
+        <layout class="QGridLayout" name="stateLayout">
+         <item row="0" column="0">
+          <widget class="QLabel" name="modeCaption">
+           <property name="text">
+            <string>Режим:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1" colspan="3">
+          <widget class="QLabel" name="modeLabel">
+           <property name="text">
+            <string>-</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="stateCaption">
+           <property name="text">
+            <string>Состояние:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1" colspan="3">
+          <widget class="QLabel" name="stateLabel">
+           <property name="text">
+            <string>-</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="ubiasCaption">
+           <property name="text">
+            <string>Uсм:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QLabel" name="ubiasValue">
+           <property name="text">
+            <string>-</string>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>110</width>
+             <height>0</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="2">
+          <widget class="QLabel" name="rangeCaption">
+           <property name="text">
+            <string>Диапазон:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="3">
+          <widget class="QLabel" name="rangeValue">
+           <property name="text">
+            <string>-</string>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>110</width>
+             <height>0</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0">
+          <widget class="QLabel" name="ugsCaption">
+           <property name="text">
+            <string>Uзи:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QLabel" name="ugsValue">
+           <property name="text">
+            <string>-</string>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>110</width>
+             <height>0</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="2">
+          <widget class="QLabel" name="udsCaption">
+           <property name="text">
+            <string>Uси:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="3">
+          <widget class="QLabel" name="udsValue">
+           <property name="text">
+            <string>-</string>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>110</width>
+             <height>0</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="0">
+          <widget class="QLabel" name="currentCaption">
+           <property name="text">
+            <string>Iс:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="1">
+          <widget class="QLabel" name="currentValue">
+           <property name="text">
+            <string>-</string>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>110</width>
+             <height>0</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="2" colspan="2">
+          <widget class="QPushButton" name="measButton">
+           <property name="text">
+            <string>Обновить показания</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <layout class="QGridLayout" name="controlLayout">
+        <item row="0" column="0">
+         <widget class="QPushButton" name="transButton">
+          <property name="text">
+           <string>Проходная характеристика</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QPushButton" name="outpButton">
+          <property name="text">
+           <string>Выходная характеристика</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QPushButton" name="pauseButton">
+          <property name="text">
+           <string>Пауза</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QPushButton" name="resumeButton">
+          <property name="text">
+           <string>Продолжить</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0" colspan="2">
+         <widget class="QPushButton" name="stopButton">
+          <property name="text">
+           <string>СТОП</string>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>36</height>
+           </size>
+          </property>
+          <property name="styleSheet">
+           <string>QPushButton { background: #d32f2f; color: white; font-weight: bold; }
+QPushButton:disabled { background: #e0a0a0; }</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="manualGroup">
+        <property name="title">
+         <string>Ручная установка напряжений</string>
+        </property>
+        <layout class="QGridLayout" name="manualLayout">
+         <item row="0" column="0">
+          <widget class="QLabel" name="setUgsLabel">
+           <property name="text">
+            <string>Uзи:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QDoubleSpinBox" name="setUgsSpin">
+           <property name="suffix">
+            <string> В</string>
+           </property>
+           <property name="decimals">
+            <number>3</number>
+           </property>
+           <property name="minimum">
+            <double>-18.0</double>
+           </property>
+           <property name="maximum">
+            <double>15.0</double>
+           </property>
+           <property name="singleStep">
+            <double>0.1</double>
+           </property>
+           <property name="value">
+            <double>0.0</double>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="2">
+          <widget class="QLabel" name="setUdsLabel">
+           <property name="text">
+            <string>Uси:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="3">
+          <widget class="QDoubleSpinBox" name="setUdsSpin">
+           <property name="suffix">
+            <string> В</string>
+           </property>
+           <property name="decimals">
+            <number>3</number>
+           </property>
+           <property name="minimum">
+            <double>-18.0</double>
+           </property>
+           <property name="maximum">
+            <double>15.0</double>
+           </property>
+           <property name="singleStep">
+            <double>0.1</double>
+           </property>
+           <property name="value">
+            <double>0.0</double>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0" colspan="2">
+          <widget class="QPushButton" name="setVButton">
+           <property name="text">
+            <string>Установить</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="2" colspan="2">
+          <widget class="QPushButton" name="zeroButton">
+           <property name="text">
+            <string>Обнулить напряжения</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="progressCaption">
+        <property name="text">
+         <string>Ход измерения:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QProgressBar" name="progressBar">
+        <property name="value">
+         <number>0</number>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="logCaption">
+        <property name="text">
+         <string>Журнал:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPlainTextEdit" name="logEdit">
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+        <property name="lineWrapMode">
+         <enum>QPlainTextEdit::NoWrap</enum>
+        </property>
+        <property name="maximumBlockCount">
+         <number>5000</number>
+        </property>
+        <property name="font">
+         <font>
+          <family>Consolas</family>
+         </font>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

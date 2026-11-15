@@ -18,6 +18,8 @@ class QProgressBar;
 class QPlainTextEdit;
 class QUdpSocket;
 
+namespace Ui { class MainWindow; }
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -67,6 +69,8 @@ private:
 
     static QString errText(int code);
     static QString fmtCurrent(double i);
+
+    Ui::MainWindow *ui;
 
     DeviceClient m_dev;
     MeasurementFile m_meas;

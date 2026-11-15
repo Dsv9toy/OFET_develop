@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "ui_mainwindow.h"
 
 #include <QCheckBox>
 #include <QCloseEvent>
@@ -31,39 +32,6 @@
 
 namespace {
 
-QDoubleSpinBox *uSpin(double value)
-{
-    auto *s = new QDoubleSpinBox;
-    s->setRange(kUserUMin, kUserUMax);
-    s->setDecimals(3);
-    s->setSingleStep(0.1);
-    s->setSuffix(" В");
-    s->setValue(value);
-    return s;
-}
-
-QDoubleSpinBox *stepSpin(double value)
-{
-    auto *s = new QDoubleSpinBox;
-    s->setRange(0.001, kUserUMax - kUserUMin);
-    s->setDecimals(3);
-    s->setSingleStep(0.01);
-    s->setSuffix(" В");
-    s->setValue(value);
-    return s;
-}
-
-QLabel *valueLabel()
-{
-    auto *l = new QLabel("-");
-    QFont f = l->font();
-    f.setBold(true);
-    f.setPointSize(f.pointSize() + 2);
-    l->setFont(f);
-    l->setMinimumWidth(110);
-    return l;
-}
-
 bool toDouble(const QString &s, double *v)
 {
     bool ok = false;
@@ -74,7 +42,7 @@ bool toDouble(const QString &s, double *v)
 } // namespace
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), m_ubias(std::numeric_limits<double>::quiet_NaN())
+    : QMainWindow(parent), ui(new Ui::MainWindow), m_ubias(std::numeric_limits<double>::quiet_NaN())
 {
     buildUi();
     loadSettings();
@@ -93,232 +61,76 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     m_dev.disconnect(this);
+    delete ui;
 }
 
 // ---------------------------------------------------------------- интерфейс
 
 void MainWindow::buildUi()
 {
-    setWindowTitle("Измерение ВАХ OFET");
+    // Внешний вид окна задаётся в mainwindow.ui (редактируется в Qt Designer).
+    ui->setupUi(this);
 
-    // --- Связь
-    auto *gLink = new QGroupBox("Связь с платой");
-    m_ip = new QLineEdit("192.168.1.10");
-    m_port = new QSpinBox;
-    m_port->setRange(1, 65535);
-    m_port->setValue(5000);
-    m_btnConnect = new QPushButton("Подключиться");
-    m_btnPing = new QPushButton("Проверка связи");
-    m_btnFind = new QPushButton("Найти плату");
-    m_btnFind->setToolTip("Поиск платы в сети (широковещательный запрос). "
-                          "При прямом подключении кабелем адрес платы 192.168.1.10");
-    m_led = new QLabel;
-    m_led->setFixedSize(18, 18);
-    auto *lLink = new QGridLayout(gLink);
-    lLink->addWidget(new QLabel("IP-адрес:"), 0, 0);
-    lLink->addWidget(m_ip, 0, 1);
-    lLink->addWidget(new QLabel("Порт:"), 0, 2);
-    lLink->addWidget(m_port, 0, 3);
-    lLink->addWidget(m_btnFind, 1, 0);
-    lLink->addWidget(m_btnConnect, 1, 1);
-    lLink->addWidget(m_btnPing, 1, 2);
-    lLink->addWidget(m_led, 1, 3, Qt::AlignCenter);
+    m_ip = ui->ipEdit;
+    m_port = ui->portSpin;
+    m_btnFind = ui->findButton;
+    m_btnConnect = ui->connectButton;
+    m_btnPing = ui->pingButton;
+    m_led = ui->linkLed;
 
-    // --- Состояние
-    auto *gState = new QGroupBox("Состояние");
-    m_lblMode = new QLabel("-");
-    m_lblState = new QLabel("-");
-    m_lblState->setWordWrap(true);
-    m_lblUbias = valueLabel();
-    m_lblUgs = valueLabel();
-    m_lblUds = valueLabel();
-    m_lblI = valueLabel();
-    m_lblRange = valueLabel();
-    m_btnMeas = new QPushButton("Обновить показания");
-    auto *lState = new QGridLayout(gState);
-    lState->addWidget(new QLabel("Режим:"), 0, 0);
-    lState->addWidget(m_lblMode, 0, 1, 1, 3);
-    lState->addWidget(new QLabel("Состояние:"), 1, 0);
-    lState->addWidget(m_lblState, 1, 1, 1, 3);
-    lState->addWidget(new QLabel("Uсм:"), 2, 0);
-    lState->addWidget(m_lblUbias, 2, 1);
-    lState->addWidget(new QLabel("Диапазон:"), 2, 2);
-    lState->addWidget(m_lblRange, 2, 3);
-    lState->addWidget(new QLabel("Uзи:"), 3, 0);
-    lState->addWidget(m_lblUgs, 3, 1);
-    lState->addWidget(new QLabel("Uси:"), 3, 2);
-    lState->addWidget(m_lblUds, 3, 3);
-    lState->addWidget(new QLabel("Iс:"), 4, 0);
-    lState->addWidget(m_lblI, 4, 1);
-    lState->addWidget(m_btnMeas, 4, 2, 1, 2);
+    m_lblMode = ui->modeLabel;
+    m_lblState = ui->stateLabel;
+    m_lblUbias = ui->ubiasValue;
+    m_lblUgs = ui->ugsValue;
+    m_lblUds = ui->udsValue;
+    m_lblI = ui->currentValue;
+    m_lblRange = ui->rangeValue;
+    m_btnMeas = ui->measButton;
 
-    // --- Транзистор
-    auto *gTr = new QGroupBox("Транзистор и диапазон");
-    m_type = new QComboBox;
-    m_type->addItem("p-тип", "p");
-    m_type->addItem("n-тип", "n");
-    m_transistor = new QSpinBox;
-    m_transistor->setRange(1, 5);
-    m_btnSel = new QPushButton("Выбрать");
-    m_lblSelected = new QLabel("не выбран");
-    m_range = new QComboBox;
-    m_range->addItem("Авто", 0);
-    const char *scales[] = {"±1,5 мА", "±150 мкА", "±15 мкА", "±1,5 мкА",
-                            "±150 нА", "±15 нА", "±1,5 нА"};
-    for (int i = 0; i < 7; ++i)
-        m_range->addItem(QString("%1 (%2)").arg(i + 1).arg(scales[i]), i + 1);
-    auto *lTr = new QGridLayout(gTr);
-    lTr->addWidget(new QLabel("Тип:"), 0, 0);
-    lTr->addWidget(m_type, 0, 1);
-    lTr->addWidget(new QLabel("Диапазон:"), 0, 2);
-    lTr->addWidget(m_range, 0, 3);
-    lTr->addWidget(new QLabel("Номер:"), 1, 0);
-    lTr->addWidget(m_transistor, 1, 1);
-    lTr->addWidget(m_btnSel, 1, 2);
-    lTr->addWidget(m_lblSelected, 1, 3);
+    m_type = ui->typeCombo;           // 0 = p-тип, 1 = n-тип
+    m_transistor = ui->transistorSpin;
+    m_btnSel = ui->selectButton;
+    m_lblSelected = ui->selectedLabel;
+    m_range = ui->rangeCombo;         // индекс 0 = авто, 1...7 = диапазон
 
-    // --- Ручная установка
-    auto *gMan = new QGroupBox("Ручная установка напряжений");
-    m_setUgs = uSpin(0.0);
-    m_setUds = uSpin(0.0);
-    m_btnSetV = new QPushButton("Установить");
-    m_btnZero = new QPushButton("Обнулить напряжения");
-    auto *lMan = new QGridLayout(gMan);
-    lMan->addWidget(new QLabel("Uзи:"), 0, 0);
-    lMan->addWidget(m_setUgs, 0, 1);
-    lMan->addWidget(new QLabel("Uси:"), 0, 2);
-    lMan->addWidget(m_setUds, 0, 3);
-    lMan->addWidget(m_btnSetV, 1, 0, 1, 2);
-    lMan->addWidget(m_btnZero, 1, 2, 1, 2);
+    m_setUgs = ui->setUgsSpin;
+    m_setUds = ui->setUdsSpin;
+    m_btnSetV = ui->setVButton;
+    m_btnZero = ui->zeroButton;
 
-    // --- Проходная
-    auto *gT = new QGroupBox("Проходная характеристика Iс(Uзи)");
-    m_tUds = uSpin(-5.0);
-    m_tUgsStart = uSpin(0.0);
-    m_tUgsStop = uSpin(-16.0);
-    m_tUgsStep = stepSpin(0.1);
-    auto *lT = new QGridLayout(gT);
-    lT->addWidget(new QLabel("Uси:"), 0, 0);
-    lT->addWidget(m_tUds, 0, 1);
-    lT->addWidget(new QLabel("Uзи начало:"), 1, 0);
-    lT->addWidget(m_tUgsStart, 1, 1);
-    lT->addWidget(new QLabel("конец:"), 1, 2);
-    lT->addWidget(m_tUgsStop, 1, 3);
-    lT->addWidget(new QLabel("шаг:"), 1, 4);
-    lT->addWidget(m_tUgsStep, 1, 5);
+    m_tUds = ui->tUdsSpin;
+    m_tUgsStart = ui->tUgsStartSpin;
+    m_tUgsStop = ui->tUgsStopSpin;
+    m_tUgsStep = ui->tUgsStepSpin;
 
-    // --- Выходная
-    auto *gO = new QGroupBox("Выходная характеристика Iс(Uси)");
-    m_oUgsStart = uSpin(0.0);
-    m_oUgsStop = uSpin(-16.0);
-    m_oUgsStep = stepSpin(4.0);
-    m_oUdsStart = uSpin(0.0);
-    m_oUdsStop = uSpin(-10.0);
-    m_oUdsStep = stepSpin(0.1);
-    auto *lO = new QGridLayout(gO);
-    lO->addWidget(new QLabel("Uзи начало:"), 0, 0);
-    lO->addWidget(m_oUgsStart, 0, 1);
-    lO->addWidget(new QLabel("конец:"), 0, 2);
-    lO->addWidget(m_oUgsStop, 0, 3);
-    lO->addWidget(new QLabel("шаг:"), 0, 4);
-    lO->addWidget(m_oUgsStep, 0, 5);
-    lO->addWidget(new QLabel("Uси начало:"), 1, 0);
-    lO->addWidget(m_oUdsStart, 1, 1);
-    lO->addWidget(new QLabel("конец:"), 1, 2);
-    lO->addWidget(m_oUdsStop, 1, 3);
-    lO->addWidget(new QLabel("шаг:"), 1, 4);
-    lO->addWidget(m_oUdsStep, 1, 5);
+    m_oUgsStart = ui->oUgsStartSpin;
+    m_oUgsStop = ui->oUgsStopSpin;
+    m_oUgsStep = ui->oUgsStepSpin;
+    m_oUdsStart = ui->oUdsStartSpin;
+    m_oUdsStop = ui->oUdsStopSpin;
+    m_oUdsStep = ui->oUdsStepSpin;
 
-    // --- Общие параметры
-    auto *gP = new QGroupBox("Параметры измерения");
-    m_delay = new QSpinBox;
-    m_delay->setRange(100, 60000);
-    m_delay->setSingleStep(50);
-    m_delay->setSuffix(" мс");
-    m_delay->setValue(200);
-    m_window = new QSpinBox;
-    m_window->setRange(20, 2000);
-    m_window->setSingleStep(20);
-    m_window->setSuffix(" мс");
-    m_window->setValue(100);
-    m_ilim = new QDoubleSpinBox;
-    m_ilim->setRange(0.001, 1500.0);
-    m_ilim->setDecimals(3);
-    m_ilim->setSuffix(" мкА");
-    m_ilim->setValue(1000.0);
-    m_reverse = new QCheckBox("Обратная развёртка (туда и обратно)");
-    m_name = new QLineEdit;
-    m_name->setPlaceholderText("например, Obrazec1");
-    m_folder = new QLineEdit;
-    m_btnFolder = new QPushButton("Обзор...");
-    auto *folderRow = new QHBoxLayout;
-    folderRow->addWidget(m_folder);
-    folderRow->addWidget(m_btnFolder);
-    auto *lP = new QFormLayout(gP);
-    lP->addRow("Задержка в точке:", m_delay);
-    lP->addRow("Окно усреднения:", m_window);
-    lP->addRow("Ограничение тока:", m_ilim);
-    lP->addRow("", m_reverse);
-    lP->addRow("Название измерения:", m_name);
-    lP->addRow("Папка:", folderRow);
+    m_delay = ui->delaySpin;
+    m_window = ui->windowSpin;
+    m_ilim = ui->ilimSpin;
+    m_reverse = ui->reverseCheck;
+    m_name = ui->nameEdit;
+    m_folder = ui->folderEdit;
+    m_btnFolder = ui->folderButton;
 
-    // --- Кнопки управления
-    m_btnTrans = new QPushButton("Проходная характеристика");
-    m_btnOutp = new QPushButton("Выходная характеристика");
-    m_btnStop = new QPushButton("СТОП");
-    m_btnStop->setStyleSheet("QPushButton { background: #d32f2f; color: white; font-weight: bold; }"
-                             "QPushButton:disabled { background: #e0a0a0; }");
-    m_btnStop->setMinimumHeight(36);
-    m_btnPause = new QPushButton("Пауза");
-    m_btnResume = new QPushButton("Продолжить");
-    auto *lBtn = new QGridLayout;
-    lBtn->addWidget(m_btnTrans, 0, 0);
-    lBtn->addWidget(m_btnOutp, 0, 1);
-    lBtn->addWidget(m_btnPause, 1, 0);
-    lBtn->addWidget(m_btnResume, 1, 1);
-    lBtn->addWidget(m_btnStop, 2, 0, 1, 2);
+    m_btnTrans = ui->transButton;
+    m_btnOutp = ui->outpButton;
+    m_btnStop = ui->stopButton;
+    m_btnPause = ui->pauseButton;
+    m_btnResume = ui->resumeButton;
+    m_progress = ui->progressBar;
+    m_log = ui->logEdit;
 
-    // --- Левая колонка
-    auto *left = new QWidget;
-    auto *lLeft = new QVBoxLayout(left);
-    lLeft->addWidget(gLink);
-    lLeft->addWidget(gTr);
-    lLeft->addWidget(gT);
-    lLeft->addWidget(gO);
-    lLeft->addWidget(gP);
-    lLeft->addStretch();
-    auto *scroll = new QScrollArea;
-    scroll->setWidget(left);
-    scroll->setWidgetResizable(true);
-    scroll->setMinimumWidth(left->sizeHint().width() + 30);
-
-    // --- Правая колонка
-    m_progress = new QProgressBar;
     m_progress->setRange(0, 1);
     m_progress->setValue(0);
-    m_log = new QPlainTextEdit;
-    m_log->setReadOnly(true);
-    m_log->setMaximumBlockCount(5000);
-    m_log->setLineWrapMode(QPlainTextEdit::NoWrap);
-    QFont mono("Consolas");
+    QFont mono = m_log->font();
     mono.setStyleHint(QFont::Monospace);
     m_log->setFont(mono);
-    auto *right = new QWidget;
-    auto *lRight = new QVBoxLayout(right);
-    lRight->addWidget(gState);
-    lRight->addLayout(lBtn);
-    lRight->addWidget(gMan);
-    lRight->addWidget(new QLabel("Ход измерения:"));
-    lRight->addWidget(m_progress);
-    lRight->addWidget(new QLabel("Журнал:"));
-    lRight->addWidget(m_log, 1);
-
-    auto *central = new QWidget;
-    auto *lMain = new QHBoxLayout(central);
-    lMain->addWidget(scroll);
-    lMain->addWidget(right, 1);
-    setCentralWidget(central);
-    resize(1200, 820);
 
     // --- Сигналы
     connect(m_btnConnect, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
@@ -467,9 +279,9 @@ void MainWindow::loadSettings()
     m_folder->setText(s.value("save/folder", defFolder).toString());
     m_name->setText(s.value("save/name").toString());
 
-    m_type->setCurrentIndex(qMax(0, m_type->findData(s.value("meas/type", "p"))));
+    m_type->setCurrentIndex(s.value("meas/type", "p").toString() == "n" ? 1 : 0);
     m_transistor->setValue(s.value("meas/transistor", 1).toInt());
-    m_range->setCurrentIndex(qMax(0, m_range->findData(s.value("meas/range", 0))));
+    m_range->setCurrentIndex(qBound(0, s.value("meas/range", 0).toInt(), 7));
     m_delay->setValue(s.value("meas/delay", 200).toInt());
     m_window->setValue(s.value("meas/window", 100).toInt());
     m_ilim->setValue(s.value("meas/ilim_uA", 1000.0).toDouble());
@@ -498,9 +310,9 @@ void MainWindow::saveSettings()
     s.setValue("link/port", m_port->value());
     s.setValue("save/folder", m_folder->text());
     s.setValue("save/name", m_name->text());
-    s.setValue("meas/type", m_type->currentData());
+    s.setValue("meas/type", m_type->currentIndex() == 1 ? "n" : "p");
     s.setValue("meas/transistor", m_transistor->value());
-    s.setValue("meas/range", m_range->currentData());
+    s.setValue("meas/range", m_range->currentIndex());
     s.setValue("meas/delay", m_delay->value());
     s.setValue("meas/window", m_window->value());
     s.setValue("meas/ilim_uA", m_ilim->value());
@@ -712,16 +524,16 @@ void MainWindow::onZero()
 void MainWindow::onRangeChanged()
 {
     if (m_mode == Mode::Idle)
-        m_dev.send(QString("RANGE;%1").arg(m_range->currentData().toInt()));
+        m_dev.send(QString("RANGE;%1").arg(m_range->currentIndex()));
 }
 
 SweepParams MainWindow::collectParams(SweepParams::Kind kind) const
 {
     SweepParams p;
     p.kind = kind;
-    p.type = m_type->currentData().toString().at(0).toLatin1();
+    p.type = m_type->currentIndex() == 1 ? 'n' : 'p';
     p.transistor = m_transistor->value();
-    p.range = m_range->currentData().toInt();
+    p.range = m_range->currentIndex();
     p.transUds = m_tUds->value();
     p.transUgsStart = m_tUgsStart->value();
     p.transUgsStop = m_tUgsStop->value();
