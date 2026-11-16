@@ -19,7 +19,6 @@ class QProgressBar;
 class QPlainTextEdit;
 class QUdpSocket;
 class QTabWidget;
-class QHostAddress;
 
 namespace Ui { class MainWindow; }
 
@@ -57,7 +56,6 @@ private slots:
     void onDiscoverFinished();
     void onOpenFile();
     void onSavePlot();
-    void onNetButton();
 
 private:
     enum class Mode { Offline, Idle, Starting, Running, Paused };
@@ -79,9 +77,6 @@ private:
     void plotPoint(int pass, double ugs, double uds, double i);
 
     static QString errText(int code);
-    void showNetDialog(const QStringList &f);
-    void sendDiscover(const QByteArray &msg);
-    bool inLocalSubnet(const QHostAddress &ip) const;
     static QString fmtCurrent(double i);
 
     Ui::MainWindow *ui;
@@ -105,8 +100,6 @@ private:
     QUdpSocket *m_udp = nullptr;
     QStringList m_found;      // "IP:порт" найденных плат
     bool m_autoFind = false;  // поиск запущен автоматически при старте программы
-    bool m_netDialogPending = false;
-    QPushButton *m_btnNet = nullptr;
     QLabel *m_led = nullptr;
 
     // Состояние и индикаторы

@@ -153,8 +153,7 @@ static void exec_command(char *line)
     const char *name = strcmp(cmd, "MEAS?") == 0 ? "MEAS" : cmd;
 
     bool known = !strcmp(cmd, "SEL") || !strcmp(cmd, "SETV") || !strcmp(cmd, "RANGE")
-              || !strcmp(cmd, "MEAS?") || !strcmp(cmd, "TRANS") || !strcmp(cmd, "OUTP")
-              || !strcmp(cmd, "NETSET");
+              || !strcmp(cmd, "MEAS?") || !strcmp(cmd, "TRANS") || !strcmp(cmd, "OUTP");
     if (!known) {
         sendf_err(name, 1);
         return;
@@ -203,27 +202,6 @@ static void exec_command(char *line)
         s_exec = EX_RANGE;
         s_exec_arg = (int)r;
         s_exec_t0 = 0;
-    } else if (!strcmp(cmd, "NETSET")) {
-        /* NETSET;AUTO  или  NETSET;STATIC;<ip>;<маска>;<шлюз>. Применяется после перезапуска платы. */
-        net_cfg_t cfg;
-        memset(&cfg, 0, sizeof cfg);
-        bool ok = false;
-        if (n == 2 && !strcmp(f[1], "AUTO")) {
-            ok = true;
-        } else if (n == 5 && !strcmp(f[1], "STATIC") && proto_ip(f[2], cfg.ip) && proto_ip(f[3], cfg.mask)
-                   && proto_ip(f[4], cfg.gw)) {
-            cfg.mode = 1;
-            ok = cfg.ip[0] != 0 && cfg.ip[0] < 224 && cfg.ip[0] != 127 && cfg.mask[0] == 255;
-        }
-        if (!ok) {
-            sendf_err("NETSET", 1);
-            return;
-        }
-        if (!hw_net_set_config(&cfg)) {
-            sendf_err("NETSET", 6);      /* не удалось сохранить во flash */
-            return;
-        }
-        send("ACK;NETSET");
     } else if (!strcmp(cmd, "MEAS?")) {
         meas_start(OFET_MEAS_WINDOW_MS);
         s_exec = EX_MEAS;
@@ -311,18 +289,6 @@ static bool urgent_command(char *line)
             if (err) sendf_err("ZERO", err);
             else send("ACK;ZERO");
         }
-    } else if (!strcmp(line, "NET?")) {
-        net_cfg_t n;
-        unsigned char cur[4];
-        char ip[16], mask[16], gw[16], now[16];
-        hw_net_get_config(&n);
-        hw_net_current_ip(cur);
-        proto_fmt_ip(n.ip, ip);
-        proto_fmt_ip(n.mask, mask);
-        proto_fmt_ip(n.gw, gw);
-        proto_fmt_ip(cur, now);
-        snprintf(buf, sizeof buf, "NET;%s;%s;%s;%s;%s", n.mode ? "STATIC" : "AUTO", ip, mask, gw, now);
-        send(buf);
     } else if (!strcmp(line, "PAUSE")) {
         sweep_pause();
         send("ACK;PAUSE");

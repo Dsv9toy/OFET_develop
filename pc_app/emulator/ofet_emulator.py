@@ -79,8 +79,6 @@ class Board:
         self.paused.set()
         self.writer = None
         self.last_rx = time.monotonic()
-        # Настройки сети платы (во flash настоящей платы): AUTO или STATIC
-        self.net = {'mode': 'AUTO', 'ip': '0.0.0.0', 'mask': '0.0.0.0', 'gw': '0.0.0.0'}
 
     # --- вспомогательное
     def ubias(self):
@@ -272,20 +270,6 @@ class Board:
                 self.send('ACK;' + cmd)
                 self.sweep_task = asyncio.ensure_future(
                     self.run_sweep(cmd, ttype, outer, inner, delay_ms, window_ms, ilim, rev))
-            elif cmd == 'NET?':
-                n = self.net
-                self.send('NET;%s;%s;%s;%s;%s' % (n['mode'], n['ip'], n['mask'], n['gw'], self.args.host))
-            elif cmd == 'NETSET':
-                if self.busy():
-                    return self.send('ERR;NETSET;4')
-                if len(f) == 2 and f[1] == 'AUTO':
-                    self.net = {'mode': 'AUTO', 'ip': '0.0.0.0', 'mask': '0.0.0.0', 'gw': '0.0.0.0'}
-                elif len(f) == 5 and f[1] == 'STATIC' and all(valid_ip(x) for x in f[2:5]):
-                    self.net = {'mode': 'STATIC', 'ip': f[2], 'mask': f[3], 'gw': f[4]}
-                else:
-                    return self.send('ERR;NETSET;1')
-                print('Настройки сети сохранены (на настоящей плате применятся после перезапуска):', self.net)
-                self.send('ACK;NETSET')
             elif cmd == 'PAUSE':
                 if self.mode in ('TRANS', 'OUTP'):
                     self.paused.clear()
@@ -364,12 +348,6 @@ class Board:
 
 
 DISCOVER_PORT = 5001
-BOARD = None
-
-
-def valid_ip(s):
-    p = s.split('.')
-    return len(p) == 4 and all(x.isdigit() and 0 <= int(x) <= 255 for x in p)
 
 
 class Discover(asyncio.DatagramProtocol):
@@ -382,13 +360,6 @@ class Discover(asyncio.DatagramProtocol):
         self.transport = transport
 
     def datagram_received(self, data, addr):
-        if data.strip() == b'NETAUTO':
-            # Сброс настроек сети на «Авто» (работает, даже если плата в чужой сети)
-            if BOARD is not None:
-                BOARD.net = {'mode': 'AUTO', 'ip': '0.0.0.0', 'mask': '0.0.0.0', 'gw': '0.0.0.0'}
-            print('Поиск: сброс настроек сети на AUTO по запросу от', addr[0])
-            self.transport.sendto(b'OFET;NETAUTO;OK\n', addr)
-            return
         if data.strip() != b'DISCOVER':
             return
         ip = self.host
@@ -412,9 +383,7 @@ async def main():
     ap.add_argument('--type', choices=['n', 'p'], default='p', help='тип транзистора в модели')
     ap.add_argument('--speed', type=float, default=1.0, help='ускорение пауз (например, 10)')
     args = ap.parse_args()
-    global BOARD
     board = Board(args)
-    BOARD = board
     server = await asyncio.start_server(board.client, args.host, args.port)
     loop = asyncio.get_running_loop()
     try:

@@ -203,22 +203,3 @@ void sim_init(void)
 #endif
     g_sim.ubias_true = 1.6480f;
 }
-
-/* ------------------------------------------------------------ сеть */
-
-static net_cfg_t s_net;              /* по умолчанию нули = авто */
-static net_cfg_t s_net_saved;
-
-void hw_net_get_config(net_cfg_t *cfg) { *cfg = s_net_saved; }
-
-bool hw_net_set_config(const net_cfg_t *cfg)
-{
-    s_net_saved = *cfg;              /* применится после перезапуска платы */
-    return true;
-}
-
-void hw_net_current_ip(uint8_t ip[4])
-{
-    (void)s_net;
-    ip[0] = 127; ip[1] = 0; ip[2] = 0; ip[3] = 1;
-}

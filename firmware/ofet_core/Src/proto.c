@@ -65,28 +65,3 @@ void proto_fmt_e(float v, char *buf)
     sprintf(buf, "%s%ld.%04ldE%c%02d", v < 0 ? "-" : "", m / 10000, m % 10000,
             e < 0 ? '-' : '+', e < 0 ? -e : e);
 }
-
-bool proto_ip(const char *s, unsigned char ip[4])
-{
-    int part = 0;
-    long v = -1;
-    for (const char *p = s; ; ++p) {
-        if (*p >= '0' && *p <= '9') {
-            v = (v < 0 ? 0 : v * 10) + (*p - '0');
-            if (v > 255) return false;
-        } else if (*p == '.' || *p == '\0') {
-            if (v < 0 || part > 3) return false;
-            ip[part++] = (unsigned char)v;
-            v = -1;
-            if (*p == '\0') break;
-        } else {
-            return false;
-        }
-    }
-    return part == 4;
-}
-
-void proto_fmt_ip(const unsigned char ip[4], char *buf)
-{
-    sprintf(buf, "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
-}
