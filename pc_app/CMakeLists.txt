@@ -51,6 +51,8 @@ if(WIN32)
             -DOUT=${PORTABLE_DIR}
             -DWINDEPLOYQT=${WINDEPLOYQT_EXE}
             -DCOMPILER_DIR=${_compiler_dir}
+            -DQT_BIN=$<TARGET_FILE_DIR:Qt${QT_VERSION_MAJOR}::Core>
+            -DQT_MAJOR=${QT_VERSION_MAJOR}
             -P "${CMAKE_SOURCE_DIR}/cmake/deploy.cmake"
         COMMENT "Portable-папка OfetMeter_portable"
         VERBATIM)
