@@ -13,6 +13,10 @@ int proto_split(char *line, char *fields[], int max_fields);
 bool proto_float(const char *s, float *out);
 bool proto_int(const char *s, long *out);
 
+/* IPv4 "192.168.1.10" <-> 4 байта */
+bool proto_ip(const char *s, unsigned char ip[4]);
+void proto_fmt_ip(const unsigned char ip[4], char *buf);
+
 /* "-1.2345" (4 знака после точки) */
 void proto_fmt_u(float v, char *buf);
 /* "-1.2345E-11" */

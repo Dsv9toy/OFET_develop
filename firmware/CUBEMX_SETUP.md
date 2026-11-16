@@ -87,7 +87,8 @@ System Clock Mux = PLLCLK, AHB Prescaler = 1, APB1 = 4, APB2 = 2. CubeMX сам 
 ## 6. Middleware: LwIP
 
 - Включить `LWIP`.
-- General Settings: LWIP_DHCP = Enabled (плата сначала ждёт адрес от роутера, при прямом кабеле прошивка сама перейдёт на 192.168.1.10). IP-адрес в CubeMX не задавать, это делается в коде.
+- General Settings: LWIP_DHCP = Enabled. IP-адрес в CubeMX не задавать, это делается в коде (режим «Авто» или постоянный адрес из flash).
+- Key Options (Show Advanced Parameters): LWIP_AUTOIP = Enabled, LWIP_DHCP_AUTOIP_COOP = Enabled (без роутера плата сама берёт 169.254.x.x), LWIP_DHCP_AUTOIP_COOP_TRIES = 3.
 - Без FreeRTOS (NO_SYS = 1): вся программа работает в одном цикле `while (1)` с вызовом `MX_LWIP_Process()`.
 - Key Options: MEM_SIZE = 16384, TCP_MSS = 1460, TCP_SND_BUF = 5840 (4 * MSS), LWIP_NETIF_LINK_CALLBACK = Enabled.
 

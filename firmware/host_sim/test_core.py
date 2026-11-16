@@ -163,6 +163,16 @@ out = run(BOOT + SEL.format(n=4) + 'TRANS;n;5.0000;0.0000;15.0000;5.0000;200;100
 cur = [float(s.split(';')[5]) for t, s in rx(out, 'DATA')]
 check('n-тип: ток положительный', len(cur) == 4 and cur[-1] > 5e-7, out)
 
+# 16. Настройки сети
+out = run(BOOT + 'NET?\nNETSET;STATIC;192.168.77.10;255.255.255.0;0.0.0.0\nNET?\nNETSET;STATIC;300.1.1.1;255.255.255.0;0.0.0.0\n'
+          'NETSET;FOO\nNETSET;AUTO\nNET?\n#wait 10\n')
+msgs = [s for t, s in rx(out)]
+check('NET? и NETSET: авто, постоянный адрес, ошибки формата',
+      msgs[0] == 'NET;AUTO;0.0.0.0;0.0.0.0;0.0.0.0;127.0.0.1' and msgs[1] == 'ACK;NETSET'
+      and msgs[2] == 'NET;STATIC;192.168.77.10;255.255.255.0;0.0.0.0;127.0.0.1'
+      and msgs[3] == 'ERR;NETSET;1' and msgs[4] == 'ERR;NETSET;1' and msgs[5] == 'ACK;NETSET'
+      and msgs[6].startswith('NET;AUTO'), out)
+
 print()
 print('Провалено тестов:', failed)
 sys.exit(1 if failed else 0)

@@ -25,6 +25,17 @@ void hw_pwr18(bool on);
 void hw_adc_begin(uint32_t window_ms);
 bool hw_adc_poll(float *utia, float *ubias);
 
+/* Настройки сети платы (хранятся во flash, применяются после перезапуска платы).
+ * mode 0 = авто (DHCP от роутера, без роутера адрес 169.254.x.x), 1 = постоянный адрес. */
+typedef struct {
+    uint8_t mode;
+    uint8_t ip[4], mask[4], gw[4];
+} net_cfg_t;
+
+void hw_net_get_config(net_cfg_t *cfg);
+bool hw_net_set_config(const net_cfg_t *cfg);   /* false = не удалось сохранить */
+void hw_net_current_ip(uint8_t ip[4]);          /* адрес, который плата использует сейчас */
+
 /* Отправить строку на ПК (платформа добавляет LF). Если ПК не подключён - ничего не делать. */
 void hw_send_line(const char *line);
 

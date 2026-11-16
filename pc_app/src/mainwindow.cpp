@@ -13,6 +13,10 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QInputDialog>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QRadioButton>
+#include <QRegularExpressionValidator>
 #include <QNetworkInterface>
 #include <QUdpSocket>
 #include <QTimer>
@@ -60,6 +64,14 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&m_dev, &DeviceClient::exchange, this, &MainWindow::onExchange);
 
     setMode(Mode::Offline);
+
+    // Сразу после запуска поискать плату в сети: если она одна, её адрес подставится сам
+    QTimer::singleShot(500, this, [this] {
+        if (m_mode == Mode::Offline && m_udp == nullptr) {
+            m_autoFind = true;
+            onFindBoard();
+        }
+    });
 }
 
 MainWindow::~MainWindow()
@@ -78,6 +90,7 @@ void MainWindow::buildUi()
     m_ip = ui->ipEdit;
     m_port = ui->portSpin;
     m_btnFind = ui->findButton;
+    m_btnNet = ui->netButton;
     m_btnConnect = ui->connectButton;
     m_btnPing = ui->pingButton;
     m_led = ui->linkLed;
@@ -144,7 +157,8 @@ void MainWindow::buildUi()
 
     // --- Сигналы
     connect(m_btnConnect, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
-    connect(m_btnFind, &QPushButton::clicked, this, &MainWindow::onFindBoard);
+    connect(m_btnFind, &QPushButton::clicked, this, [this] { m_autoFind = false; onFindBoard(); });
+    connect(m_btnNet, &QPushButton::clicked, this, &MainWindow::onNetButton);
     connect(m_btnPing, &QPushButton::clicked, this, [this] { m_dev.send("PING"); });
     connect(m_btnMeas, &QPushButton::clicked, this, [this] { m_dev.send("MEAS?"); });
     connect(m_btnSel, &QPushButton::clicked, this, &MainWindow::onSelect);
@@ -174,6 +188,7 @@ void MainWindow::updateUi()
     m_port->setEnabled(!online);
     m_btnPing->setEnabled(online);
     m_btnFind->setEnabled(!online && m_udp == nullptr);
+    m_btnNet->setEnabled(idle);
     m_btnMeas->setEnabled(idle);
     m_btnSel->setEnabled(idle);
     m_range->setEnabled(!busy);
@@ -247,6 +262,7 @@ QString MainWindow::errText(int code)
     case 3: return "нет ответа ЦАП по I2C";
     case 4: return "команда недоступна, идёт измерение";
     case 5: return "транзистор не выбран";
+    case 6: return "не удалось сохранить настройки в памяти платы";
     default: return QString("неизвестная ошибка %1").arg(code);
     }
 }
@@ -287,7 +303,7 @@ void MainWindow::onExchange(const QString &dir, const QString &line)
 void MainWindow::loadSettings()
 {
     QSettings s;
-    m_ip->setText(s.value("link/ip", m_ip->text()).toString());
+    m_ip->setText(s.value("link/ip", QString()).toString());
     m_port->setValue(s.value("link/port", m_port->value()).toInt());
     const QString defFolder = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
     m_folder->setText(s.value("save/folder", defFolder).toString());
@@ -392,7 +408,18 @@ void MainWindow::onFindBoard()
     }
     connect(m_udp, &QUdpSocket::readyRead, this, &MainWindow::onDiscoverReply);
 
-    // Широковещательный запрос в каждую сеть ПК, общий broadcast и локальный эмулятор
+    sendDiscover("DISCOVER\n");
+
+    log(m_autoFind ? "Автоматический поиск платы в сети..." : "Поиск платы в сети...");
+    setState("Поиск платы...");
+    setLed("#fdd835");
+    updateUi();
+    QTimer::singleShot(1500, this, &MainWindow::onDiscoverFinished);
+}
+
+// Широковещательный запрос в каждую сеть ПК, общий broadcast и локальный эмулятор
+void MainWindow::sendDiscover(const QByteArray &msg)
+{
     QList<QHostAddress> targets{QHostAddress::Broadcast, QHostAddress::LocalHost};
     for (const QNetworkInterface &nif : QNetworkInterface::allInterfaces()) {
         if (!(nif.flags() & QNetworkInterface::IsUp) || !(nif.flags() & QNetworkInterface::IsRunning))
@@ -402,13 +429,20 @@ void MainWindow::onFindBoard()
                 targets.append(e.broadcast());
     }
     for (const QHostAddress &a : targets)
-        m_udp->writeDatagram("DISCOVER\n", a, kDiscoverPort);
+        m_udp->writeDatagram(msg, a, kDiscoverPort);
+}
 
-    log("Поиск платы в сети...");
-    setState("Поиск платы...");
-    setLed("#fdd835");
-    updateUi();
-    QTimer::singleShot(1500, this, &MainWindow::onDiscoverFinished);
+// Находится ли адрес в одной из сетей этого ПК (иначе подключиться по TCP не получится)
+bool MainWindow::inLocalSubnet(const QHostAddress &ip) const
+{
+    if (ip.isLoopback())
+        return true;
+    for (const QNetworkInterface &nif : QNetworkInterface::allInterfaces())
+        for (const QNetworkAddressEntry &e : nif.addressEntries())
+            if (e.ip().protocol() == QAbstractSocket::IPv4Protocol && e.prefixLength() > 0
+                && ip.isInSubnet(e.ip(), e.prefixLength()))
+                return true;
+    return false;
 }
 
 void MainWindow::onDiscoverReply()
@@ -421,6 +455,10 @@ void MainWindow::onDiscoverReply()
         const QStringList f = QString::fromLatin1(d).trimmed().split(';');
         if (f.value(0) != "OFET" || f.size() < 3)
             continue;
+        if (f[1] == "NETAUTO") {
+            log("Плата " + QHostAddress(from.toIPv4Address()).toString() + " сбросила настройки сети на «Авто»");
+            continue;
+        }
         // Адрес берём из ответа; если он пустой, то адрес отправителя
         QHostAddress ip(f[1]);
         if (ip.isNull())
@@ -438,11 +476,16 @@ void MainWindow::onDiscoverFinished()
         m_udp->deleteLater();
         m_udp = nullptr;
     }
+    const bool autoFind = m_autoFind;
+    m_autoFind = false;
     setLed(m_mode == Mode::Offline ? "#9e9e9e" : "#43a047");
     QString pick;
     if (m_found.isEmpty()) {
         log("Плата не найдена");
-        setState("Плата не найдена. При прямом подключении кабелем адрес платы 192.168.1.10", true);
+        if (autoFind)
+            setState("Плата в сети не найдена. Подключите плату и нажмите «Найти плату» или впишите IP вручную");
+        else
+            setState("Плата не найдена. Проверьте кабель и питание платы, подождите 30 с после подключения и повторите", true);
     } else if (m_found.size() == 1) {
         pick = m_found.first();
     } else {
@@ -451,13 +494,128 @@ void MainWindow::onDiscoverFinished()
         if (!ok)
             pick.clear();
     }
-    if (!pick.isEmpty()) {
-        m_ip->setText(pick.section(':', 0, 0));
-        m_port->setValue(pick.section(':', 1, 1).toInt());
-        log("Найдена плата: " + pick);
-        setState("Найдена плата " + pick + ". Нажмите «Подключиться»");
+    if (pick.isEmpty()) {
+        updateUi();
+        return;
     }
+    const QHostAddress ip(pick.section(':', 0, 0));
+    log("Найдена плата: " + pick);
+    if (!inLocalSubnet(ip)) {
+        // Плате задан постоянный адрес из другой сети: TCP-подключение невозможно
+        log("Плата " + ip.toString() + " находится в другой сети, чем этот ПК");
+        const auto r = QMessageBox::question(this, "Плата в другой сети",
+            QString("Найдена плата с адресом %1, но этот адрес не из сети этого компьютера, "
+                    "поэтому подключиться к ней не получится.\n\n"
+                    "Обычно так бывает, если плате задан постоянный адрес для другой сети.\n\n"
+                    "Сбросить сетевые настройки платы на «Авто»? После этого перезапустите плату "
+                    "(выключить и включить питание) и снова нажмите «Найти плату».").arg(ip.toString()));
+        if (r == QMessageBox::Yes) {
+            m_udp = new QUdpSocket(this);
+            if (m_udp->bind(QHostAddress(QHostAddress::AnyIPv4), 0)) {
+                connect(m_udp, &QUdpSocket::readyRead, this, &MainWindow::onDiscoverReply);
+                sendDiscover("NETAUTO\n");
+                QTimer::singleShot(1500, this, [this] {
+                    if (m_udp) { onDiscoverReply(); m_udp->deleteLater(); m_udp = nullptr; }
+                    updateUi();
+                });
+            }
+            setState("Отправлен сброс сети на «Авто». Перезапустите плату и нажмите «Найти плату»");
+        }
+        updateUi();
+        return;
+    }
+    m_ip->setText(ip.toString());
+    m_port->setValue(pick.section(':', 1, 1).toInt());
+    setState("Найдена плата " + pick + ". Нажмите «Подключиться»");
     updateUi();
+}
+
+// ---------------------------------------------------------------- сеть платы
+
+void MainWindow::onNetButton()
+{
+    m_netDialogPending = true;
+    m_dev.send("NET?");             // ответ NET;... откроет окно настроек (showNetDialog)
+}
+
+void MainWindow::showNetDialog(const QStringList &f)
+{
+    // f: NET;<AUTO|STATIC>;<ip>;<маска>;<шлюз>;<текущий адрес>
+    QDialog dlg(this);
+    dlg.setWindowTitle("Сетевые настройки платы");
+    auto *lay = new QVBoxLayout(&dlg);
+    auto *info = new QLabel(QString("Сейчас плата работает с адресом <b>%1</b>.").arg(f.value(5)));
+    lay->addWidget(info);
+
+    auto *rAuto = new QRadioButton("Авто (рекомендуется)");
+    auto *autoHint = new QLabel("Адрес выдаёт роутер. При подключении кабелем прямо к ПК плата сама берёт "
+                                "адрес 169.254.x.x, как и Windows. Плату находит кнопка «Найти плату».");
+    autoHint->setWordWrap(true);
+    autoHint->setStyleSheet("color: #555; margin-left: 22px;");
+    auto *rStatic = new QRadioButton("Постоянный адрес");
+    lay->addWidget(rAuto);
+    lay->addWidget(autoHint);
+    lay->addWidget(rStatic);
+
+    const QString ipRe = R"(^((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d)$)";
+    auto mkEdit = [&](const QString &v, const QString &def) {
+        auto *e = new QLineEdit(v == "0.0.0.0" ? def : v);
+        e->setValidator(new QRegularExpressionValidator(QRegularExpression(ipRe), e));
+        return e;
+    };
+    QLineEdit *eIp = mkEdit(f.value(2), "192.168.1.200");
+    QLineEdit *eMask = mkEdit(f.value(3), "255.255.255.0");
+    QLineEdit *eGw = mkEdit(f.value(4), "0.0.0.0");
+    auto *form = new QFormLayout;
+    form->addRow("IP-адрес:", eIp);
+    form->addRow("Маска:", eMask);
+    form->addRow("Шлюз (можно 0.0.0.0):", eGw);
+    lay->addLayout(form);
+
+    auto *hint = new QLabel("Постоянный адрес должен быть из сети компьютера (например, если у ПК адрес "
+                            "192.168.1.185, то 192.168.1.x) и не занят другим устройством.\n"
+                            "Настройки сохраняются в памяти платы и вступают в силу после её перезапуска.");
+    hint->setWordWrap(true);
+    hint->setStyleSheet("color: #555;");
+    lay->addWidget(hint);
+
+    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    bb->button(QDialogButtonBox::Ok)->setText("Сохранить в плату");
+    bb->button(QDialogButtonBox::Cancel)->setText("Отмена");
+    lay->addWidget(bb);
+    connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+
+    auto sync = [&] {
+        const bool st = rStatic->isChecked();
+        eIp->setEnabled(st); eMask->setEnabled(st); eGw->setEnabled(st);
+    };
+    connect(rStatic, &QRadioButton::toggled, &dlg, sync);
+    (f.value(1) == "STATIC" ? rStatic : rAuto)->setChecked(true);
+    sync();
+    dlg.setMinimumWidth(480);
+    dlg.resize(480, dlg.sizeHint().height());
+
+    while (dlg.exec() == QDialog::Accepted) {
+        if (rAuto->isChecked()) {
+            m_dev.send("NETSET;AUTO");
+            return;
+        }
+        if (!eIp->hasAcceptableInput() || !eMask->hasAcceptableInput() || !eGw->hasAcceptableInput()) {
+            QMessageBox::warning(this, "Сетевые настройки", "Адрес, маска и шлюз должны быть вида 192.168.1.200.");
+            continue;
+        }
+        const QHostAddress ip(eIp->text());
+        if (!inLocalSubnet(ip)) {
+            const auto r = QMessageBox::question(this, "Сетевые настройки",
+                "Адрес " + ip.toString() + " не из сети этого компьютера: после перезапуска платы "
+                "этот ПК не сможет к ней подключиться. Всё равно сохранить?");
+            if (r != QMessageBox::Yes)
+                continue;
+        }
+        m_dev.send(QString("NETSET;STATIC;%1;%2;%3").arg(eIp->text(), eMask->text(), eGw->text()));
+        return;
+    }
 }
 
 // ---------------------------------------------------------------- связь
@@ -629,6 +787,11 @@ void MainWindow::onLine(const QString &line, const QStringList &f)
         m_lblSelected->setText(m_selected ? QString("выбран %1").arg(m_selected) : "не выбран");
         m_lblRange->setText(f[4] + (f.value(5) == "1" ? " (авто)" : ""));
         setState("Плата: " + f[1]);
+    } else if (cmd == "NET" && f.size() >= 6) {
+        if (m_netDialogPending) {
+            m_netDialogPending = false;
+            showNetDialog(f);
+        }
     } else if (cmd == "MEAS" && f.size() >= 6) {
         double ub, ugs, uds, i;
         if (toDouble(f[1], &ub) && toDouble(f[2], &ugs) && toDouble(f[3], &uds) && toDouble(f[4], &i)) {
@@ -664,6 +827,11 @@ void MainWindow::onLine(const QString &line, const QStringList &f)
             log("Запись в файл: " + QDir::toNativeSeparators(m_meas.path()) + " (" + fmt.describe() + ")");
             plotStart(m_sweep.kind, m_sweep.name.trimmed());
             setMode(Mode::Running);
+        } else if (what == "NETSET") {
+            QMessageBox::information(this, "Сетевые настройки",
+                "Настройки сохранены в памяти платы. Они вступят в силу после перезапуска платы "
+                "(выключить и включить питание или нажать кнопку сброса).\n\n"
+                "После перезапуска нажмите «Найти плату».");
         } else if (what == "PAUSE") {
             setMode(Mode::Paused);
         } else if (what == "RESUME") {

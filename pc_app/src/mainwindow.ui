@@ -43,8 +43,8 @@
            </item>
            <item row="0" column="1">
             <widget class="QLineEdit" name="ipEdit">
-             <property name="text">
-              <string>192.168.1.10</string>
+             <property name="placeholderText">
+              <string>найдётся сам или впишите</string>
              </property>
             </widget>
            </item>
@@ -74,7 +74,7 @@
               <string>Найти плату</string>
              </property>
              <property name="toolTip">
-              <string>Поиск платы в сети. При прямом подключении кабелем адрес платы 192.168.1.10</string>
+              <string>Поиск платы в сети (широковещательный запрос). Выполняется и сам при запуске программы</string>
              </property>
             </widget>
            </item>
@@ -105,6 +105,16 @@
                <width>18</width>
                <height>18</height>
               </size>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="2">
+            <widget class="QPushButton" name="netButton">
+             <property name="text">
+              <string>Сеть платы...</string>
+             </property>
+             <property name="toolTip">
+              <string>Посмотреть и изменить сетевые настройки платы: авто или постоянный IP-адрес</string>
              </property>
             </widget>
            </item>
