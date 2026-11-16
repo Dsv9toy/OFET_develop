@@ -5,6 +5,7 @@
 
 #include "deviceclient.h"
 #include "measurementfile.h"
+#include "plotwidget.h"
 #include "sweepparams.h"
 
 class QLineEdit;
@@ -17,6 +18,7 @@ class QLabel;
 class QProgressBar;
 class QPlainTextEdit;
 class QUdpSocket;
+class QTabWidget;
 
 namespace Ui { class MainWindow; }
 
@@ -26,6 +28,9 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow() override;
+
+    // Построить график по сохранённому файлу измерения
+    bool loadMeasurementFile(const QString &path);
 
 protected:
     void closeEvent(QCloseEvent *e) override;
@@ -49,6 +54,8 @@ private slots:
     void onFindBoard();
     void onDiscoverReply();
     void onDiscoverFinished();
+    void onOpenFile();
+    void onSavePlot();
 
 private:
     enum class Mode { Offline, Idle, Starting, Running, Paused };
@@ -66,6 +73,8 @@ private:
     void startSweep(SweepParams::Kind kind);
     void finishSweep(const QString &note);
     void showIndicators(double ugs, double uds, double i, int range);
+    void plotStart(SweepParams::Kind kind, const QString &title);
+    void plotPoint(int pass, double ugs, double uds, double i);
 
     static QString errText(int code);
     static QString fmtCurrent(double i);
@@ -146,4 +155,14 @@ private:
     QPushButton *m_btnResume = nullptr;
     QProgressBar *m_progress = nullptr;
     QPlainTextEdit *m_log = nullptr;
+    QComboBox *m_csvFormat = nullptr;
+
+    // График
+    QTabWidget *m_tabs = nullptr;
+    PlotWidget *m_plot = nullptr;
+    QComboBox *m_yMode = nullptr;
+    QPushButton *m_btnOpenFile = nullptr;
+    QPushButton *m_btnSavePlot = nullptr;
+    SweepParams::Kind m_plotKind = SweepParams::Transfer;
+    QVector<qint64> m_plotGroups;   // Uзи * 1e4 для номера цвета кривой выходной характеристики
 };

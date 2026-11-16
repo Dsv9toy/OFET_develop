@@ -26,6 +26,10 @@
 #include <QSettings>
 #include <QSpinBox>
 #include <QStandardPaths>
+#include <QTabWidget>
+#include <QRegularExpression>
+#include <QTextStream>
+#include <QFileInfo>
 #include <QVBoxLayout>
 #include <cmath>
 #include <limits>
@@ -125,6 +129,12 @@ void MainWindow::buildUi()
     m_btnResume = ui->resumeButton;
     m_progress = ui->progressBar;
     m_log = ui->logEdit;
+    m_csvFormat = ui->csvFormatCombo;
+    m_tabs = ui->viewTabs;
+    m_plot = ui->plotWidget;
+    m_yMode = ui->yModeCombo;
+    m_btnOpenFile = ui->openFileButton;
+    m_btnSavePlot = ui->savePlotButton;
 
     m_progress->setRange(0, 1);
     m_progress->setValue(0);
@@ -147,6 +157,9 @@ void MainWindow::buildUi()
     connect(m_btnPause, &QPushButton::clicked, this, [this] { m_dev.send("PAUSE"); });
     connect(m_btnResume, &QPushButton::clicked, this, [this] { m_dev.send("RESUME"); });
     connect(m_btnFolder, &QPushButton::clicked, this, &MainWindow::onBrowseFolder);
+    connect(m_yMode, QOverload<int>::of(&QComboBox::currentIndexChanged), m_plot, &PlotWidget::setYMode);
+    connect(m_btnOpenFile, &QPushButton::clicked, this, &MainWindow::onOpenFile);
+    connect(m_btnSavePlot, &QPushButton::clicked, this, &MainWindow::onSavePlot);
     connect(m_folder, &QLineEdit::editingFinished, this, &MainWindow::openLogFile);
 }
 
@@ -176,7 +189,8 @@ void MainWindow::updateUi()
     for (QWidget *w : std::initializer_list<QWidget *>{
              m_type, m_transistor, m_tUds, m_tUgsStart, m_tUgsStop, m_tUgsStep,
              m_oUgsStart, m_oUgsStop, m_oUgsStep, m_oUdsStart, m_oUdsStop, m_oUdsStep,
-             m_delay, m_window, m_ilim, m_reverse, m_name, m_folder, m_btnFolder})
+             m_delay, m_window, m_ilim, m_reverse, m_name, m_folder, m_btnFolder,
+             m_csvFormat, m_btnOpenFile})
         w->setEnabled(!busy);
 }
 
@@ -219,8 +233,8 @@ QString MainWindow::fmtCurrent(double i)
 
 void MainWindow::showIndicators(double ugs, double uds, double i, int range)
 {
-    m_lblUgs->setText(MeasurementFile::num(ugs, 4) + " В");
-    m_lblUds->setText(MeasurementFile::num(uds, 4) + " В");
+    m_lblUgs->setText(MeasurementFile::uiNum(ugs, 4) + " В");
+    m_lblUds->setText(MeasurementFile::uiNum(uds, 4) + " В");
     m_lblI->setText(fmtCurrent(i));
     m_lblRange->setText(QString::number(range));
 }
@@ -300,6 +314,9 @@ void MainWindow::loadSettings()
     ld(m_oUdsStart, "outp/uds_start");
     ld(m_oUdsStop, "outp/uds_stop");
     ld(m_oUdsStep, "outp/uds_step");
+    m_csvFormat->setCurrentIndex(qBound(0, s.value("save/csv_format", 0).toInt(), 3));
+    m_yMode->setCurrentIndex(qBound(0, s.value("ui/y_mode", 1).toInt(), 2));
+    m_plot->setYMode(m_yMode->currentIndex());
     restoreGeometry(s.value("ui/geometry").toByteArray());
 }
 
@@ -327,6 +344,8 @@ void MainWindow::saveSettings()
     s.setValue("outp/uds_start", m_oUdsStart->value());
     s.setValue("outp/uds_stop", m_oUdsStop->value());
     s.setValue("outp/uds_step", m_oUdsStep->value());
+    s.setValue("save/csv_format", m_csvFormat->currentIndex());
+    s.setValue("ui/y_mode", m_yMode->currentIndex());
     s.setValue("ui/geometry", saveGeometry());
 }
 
@@ -604,7 +623,7 @@ void MainWindow::onLine(const QString &line, const QStringList &f)
         double ub;
         if (toDouble(f[2], &ub)) {
             m_ubias = ub;
-            m_lblUbias->setText(MeasurementFile::num(ub, 4) + " В");
+            m_lblUbias->setText(MeasurementFile::uiNum(ub, 4) + " В");
         }
         m_selected = f[3].toInt();
         m_lblSelected->setText(m_selected ? QString("выбран %1").arg(m_selected) : "не выбран");
@@ -614,7 +633,7 @@ void MainWindow::onLine(const QString &line, const QStringList &f)
         double ub, ugs, uds, i;
         if (toDouble(f[1], &ub) && toDouble(f[2], &ugs) && toDouble(f[3], &uds) && toDouble(f[4], &i)) {
             m_ubias = ub;
-            m_lblUbias->setText(MeasurementFile::num(ub, 4) + " В");
+            m_lblUbias->setText(MeasurementFile::uiNum(ub, 4) + " В");
             showIndicators(ugs, uds, i, f[5].toInt());
         }
     } else if (cmd == "ACK") {
@@ -626,22 +645,24 @@ void MainWindow::onLine(const QString &line, const QStringList &f)
         } else if (what == "SETV") {
             double ugs, uds;
             if (toDouble(f.value(2), &ugs) && toDouble(f.value(3), &uds)) {
-                m_lblUgs->setText(MeasurementFile::num(ugs, 4) + " В");
-                m_lblUds->setText(MeasurementFile::num(uds, 4) + " В");
+                m_lblUgs->setText(MeasurementFile::uiNum(ugs, 4) + " В");
+                m_lblUds->setText(MeasurementFile::uiNum(uds, 4) + " В");
             }
         } else if (what == "ZERO") {
-            m_lblUgs->setText(MeasurementFile::num(0, 4) + " В");
-            m_lblUds->setText(MeasurementFile::num(0, 4) + " В");
+            m_lblUgs->setText(MeasurementFile::uiNum(0, 4) + " В");
+            m_lblUds->setText(MeasurementFile::uiNum(0, 4) + " В");
         } else if ((what == "TRANS" || what == "OUTP") && m_mode == Mode::Starting) {
             QString err;
-            if (!m_meas.open(m_folder->text().trimmed(), m_sweep, m_ubias, &err)) {
+            const CsvFormat fmt = CsvFormat::fromMode(m_csvFormat->currentIndex());
+            if (!m_meas.open(m_folder->text().trimmed(), m_sweep, m_ubias, fmt, &err)) {
                 log("Ошибка: " + err);
                 setState(err, true);
                 m_dev.send("STOP");
                 setMode(Mode::Idle);
                 return;
             }
-            log("Запись в файл: " + QDir::toNativeSeparators(m_meas.path()));
+            log("Запись в файл: " + QDir::toNativeSeparators(m_meas.path()) + " (" + fmt.describe() + ")");
+            plotStart(m_sweep.kind, m_sweep.name.trimmed());
             setMode(Mode::Running);
         } else if (what == "PAUSE") {
             setMode(Mode::Paused);
@@ -659,6 +680,7 @@ void MainWindow::onLine(const QString &line, const QStringList &f)
             const int n = f[1].toInt();
             const int range = f[6].toInt();
             m_meas.addPoint(n, f[2].toInt(), ugs, uds, i, range, f[7].toInt());
+            plotPoint(f[2].toInt(), ugs, uds, i);
             showIndicators(ugs, uds, i, range);
             if (n <= m_progress->maximum())
                 m_progress->setValue(n);
@@ -684,4 +706,115 @@ void MainWindow::onLine(const QString &line, const QStringList &f)
         if (m_meas.isOpen())
             m_meas.close("остановлено: превышение тока, точка " + f.value(1) + ", I = " + f.value(2) + " А");
     }
+}
+
+// ---------------------------------------------------------------- график
+
+void MainWindow::plotStart(SweepParams::Kind kind, const QString &title)
+{
+    m_plotKind = kind;
+    m_plotGroups.clear();
+    m_plot->clear();
+    m_plot->setTitle(title);
+    m_plot->setXLabel(kind == SweepParams::Transfer ? "Uзи, В" : "Uси, В");
+    m_tabs->setCurrentIndex(0);     // показать вкладку «График»
+}
+
+void MainWindow::plotPoint(int pass, double ugs, double uds, double i)
+{
+    const bool back = pass == 2;
+    if (m_plotKind == SweepParams::Transfer) {
+        m_plot->addPoint(0, back, "Iс(Uзи)", ugs, i);
+        return;
+    }
+    // Выходная: своя кривая (свой цвет) на каждое Uзи
+    const qint64 key = qRound64(ugs * 1e4);
+    int g = m_plotGroups.indexOf(key);
+    if (g < 0) {
+        m_plotGroups.append(key);
+        g = m_plotGroups.size() - 1;
+    }
+    m_plot->addPoint(g, back, "Uзи = " + MeasurementFile::uiNum(ugs, 2) + " В", uds, i);
+}
+
+// Открыть ранее сохранённый файл измерения и построить график
+void MainWindow::onOpenFile()
+{
+    const QString path = QFileDialog::getOpenFileName(this, "Открыть файл измерения",
+        m_folder->text(), "Измерения (*.csv *.txt);;Все файлы (*)");
+    if (!path.isEmpty())
+        loadMeasurementFile(path);
+}
+
+bool MainWindow::loadMeasurementFile(const QString &path)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, "Открыть файл", "Не удалось открыть файл:\n" + f.errorString());
+        return false;
+    }
+    QString text = QString::fromUtf8(f.readAll());
+    if (text.startsWith(QChar(0xFEFF)))
+        text.remove(0, 1);
+    const QStringList lines = text.split(QRegularExpression("\\r?\\n"));
+    if (lines.isEmpty())
+        return false;
+
+    // Разделитель определяем по строке заголовков: «N», затем «Проход»
+    QChar sep;
+    for (QChar c : {QChar(';'), QChar('\t'), QChar(',')})
+        if (lines[0].startsWith(QString("N") + c + "Проход")) { sep = c; break; }
+    if (sep.isNull()) {
+        QMessageBox::warning(this, "Открыть файл",
+            "Это не файл измерения этой программы (первая строка должна начинаться с «N» и «Проход»).");
+        return false;
+    }
+    const bool commaDecimal = sep != ',';
+    auto toD = [commaDecimal](QString s, bool *ok) {
+        if (commaDecimal) s.replace(',', '.');
+        return s.toDouble(ok);
+    };
+
+    SweepParams::Kind kind = SweepParams::Transfer;
+    struct Pt { int pass; double ugs, uds, i; };
+    QVector<Pt> pts;
+    for (int k = 1; k < lines.size(); ++k) {
+        const QStringList c = lines[k].split(sep);
+        if (c.size() > 11 && c[10] == "Характеристика" && c[11].startsWith("Выход"))
+            kind = SweepParams::Output;
+        bool ok1, ok2, ok3, ok4;
+        if (c.size() < 5 || c[0].isEmpty())
+            continue;
+        const int pass = c[1].toInt(&ok1);
+        const double ugs = toD(c[2], &ok2), uds = toD(c[3], &ok3), i = toD(c[4], &ok4);
+        if (ok1 && ok2 && ok3 && ok4)
+            pts.append({pass, ugs, uds, i});
+    }
+    if (pts.isEmpty()) {
+        QMessageBox::warning(this, "Открыть файл", "В файле нет точек измерения.");
+        return false;
+    }
+    plotStart(kind, QFileInfo(path).completeBaseName());
+    for (const Pt &p : pts)
+        plotPoint(p.pass, p.ugs, p.uds, p.i);
+    log(QString("Открыт файл %1: %2 точек").arg(QDir::toNativeSeparators(path)).arg(pts.size()));
+    return true;
+}
+
+void MainWindow::onSavePlot()
+{
+    if (m_plot->isEmpty()) {
+        QMessageBox::information(this, "Сохранить картинку", "График пока пустой.");
+        return;
+    }
+    const QString def = QDir(m_folder->text()).filePath(
+        (m_name->text().trimmed().isEmpty() ? QString("grafik") : m_name->text().trimmed())
+        + "_" + QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss") + ".png");
+    const QString path = QFileDialog::getSaveFileName(this, "Сохранить картинку графика", def, "Картинка PNG (*.png)");
+    if (path.isEmpty())
+        return;
+    if (m_plot->savePng(path))
+        log("Картинка сохранена: " + QDir::toNativeSeparators(path));
+    else
+        QMessageBox::warning(this, "Сохранить картинку", "Не удалось сохранить файл.");
 }

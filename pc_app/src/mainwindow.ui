@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1200</width>
-    <height>820</height>
+    <width>1280</width>
+    <height>900</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -22,7 +22,7 @@
       </property>
       <property name="minimumSize">
        <size>
-        <width>560</width>
+        <width>610</width>
         <height>0</height>
        </size>
       </property>
@@ -637,13 +637,44 @@
             </widget>
            </item>
            <item row="5" column="0">
+            <widget class="QLabel" name="csvFormatLabel">
+             <property name="text">
+              <string>Формат файла:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="1">
+            <widget class="QComboBox" name="csvFormatCombo">
+             <item>
+              <property name="text">
+               <string>Авто (как в Windows)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Excel RU: «;» и запятая</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Столбцы «,» и точка</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Табуляция и точка (.txt)</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item row="6" column="0">
             <widget class="QLabel" name="folderLabel">
              <property name="text">
               <string>Папка:</string>
              </property>
             </widget>
            </item>
-           <item row="5" column="1">
+           <item row="6" column="1">
             <layout class="QHBoxLayout" name="folderLayout">
              <item>
               <widget class="QLineEdit" name="folderEdit"/>
@@ -1001,28 +1032,109 @@ QPushButton:disabled { background: #e0a0a0; }</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="logCaption">
-        <property name="text">
-         <string>Журнал:</string>
+       <widget class="QTabWidget" name="viewTabs">
+        <property name="currentIndex">
+         <number>0</number>
         </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPlainTextEdit" name="logEdit">
-        <property name="readOnly">
-         <bool>true</bool>
-        </property>
-        <property name="lineWrapMode">
-         <enum>QPlainTextEdit::NoWrap</enum>
-        </property>
-        <property name="maximumBlockCount">
-         <number>5000</number>
-        </property>
-        <property name="font">
-         <font>
-          <family>Consolas</family>
-         </font>
-        </property>
+        <widget class="QWidget" name="plotTab">
+         <attribute name="title">
+          <string>График</string>
+         </attribute>
+         <layout class="QVBoxLayout" name="plotTabLayout">
+          <item>
+           <layout class="QHBoxLayout" name="plotBarLayout">
+            <item>
+             <widget class="QLabel" name="yModeLabel">
+              <property name="text">
+               <string>Ось Y:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QComboBox" name="yModeCombo">
+              <item>
+               <property name="text">
+                <string>Iс, линейно</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>|Iс|, логарифм</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>sqrt(|Iс|)</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item>
+             <spacer name="plotBarSpacer">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>0</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="QPushButton" name="openFileButton">
+              <property name="text">
+               <string>Открыть файл...</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="savePlotButton">
+              <property name="text">
+               <string>Сохранить картинку...</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="PlotWidget" name="plotWidget">
+            <property name="minimumSize">
+             <size>
+              <width>300</width>
+              <height>260</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+        <widget class="QWidget" name="logTab">
+         <attribute name="title">
+          <string>Журнал</string>
+         </attribute>
+         <layout class="QVBoxLayout" name="logTabLayout">
+          <item>
+           <widget class="QPlainTextEdit" name="logEdit">
+            <property name="readOnly">
+             <bool>true</bool>
+            </property>
+            <property name="lineWrapMode">
+             <enum>QPlainTextEdit::NoWrap</enum>
+            </property>
+            <property name="maximumBlockCount">
+             <number>5000</number>
+            </property>
+            <property name="font">
+             <font>
+              <family>Consolas</family>
+             </font>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
        </widget>
       </item>
      </layout>
@@ -1030,6 +1142,14 @@ QPushButton:disabled { background: #e0a0a0; }</string>
    </layout>
   </widget>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PlotWidget</class>
+   <extends>QWidget</extends>
+   <header>plotwidget.h</header>
+   <container>0</container>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>
