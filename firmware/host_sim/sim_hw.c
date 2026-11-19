@@ -76,6 +76,19 @@ static bool safe_now(void)
 void hw_sel_line(int ch, bool on)
 {
     if (ch < 1 || ch > 6) return;
+#if !OFET_SEL_BISTABLE
+    /* Моностабильные реле: обмотка RESET отсутствует, реле включено, пока есть напряжение на SET */
+    if (ch % 2 == 0) {
+        if (on)
+            sim_violation("коммутатор: у моностабильного реле нет обмотки RESET%s, канал %d", "", ch);
+        return;
+    }
+    if (on != s_sel_on[ch] && !safe_now())
+        sim_violation("коммутатор: переключение не в безопасном состоянии%s, канал %d", "", ch);
+    s_sel_on[ch] = on;
+    s_group[(ch - 1) / 2] = on ? 'B' : 'A';
+    return;
+#endif
     if (on && !s_sel_on[ch]) {
         for (int i = 1; i <= 6; ++i)
             if (i != ch && s_sel_on[i])
@@ -196,8 +209,12 @@ bool hw_adc_poll(float *utia, float *ubias)
 
 void sim_init(void)
 {
+#if OFET_SEL_BISTABLE
     /* Неизвестное положение бистабильных реле после включения питания */
     s_group[0] = 'B'; s_group[1] = 'B'; s_group[2] = 'A';
+#else
+    s_group[0] = 'A'; s_group[1] = 'A'; s_group[2] = 'A';   /* обмотки обесточены */
+#endif
 #if OFET_RANGE_BISTABLE
     s_closed[3] = s_closed[6] = true;
 #endif

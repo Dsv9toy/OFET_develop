@@ -7,8 +7,7 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SIM = os.path.join(HERE, 'ofet_sim')
-SIM7 = os.path.join(HERE, 'ofet_sim_relay7')
+SIM = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else os.path.join(HERE, 'ofet_sim')
 
 BOOT = '#connect\n#wait 1500\n'
 SEL = 'SEL;{n}\n#until ACK;SEL 3000\n'
@@ -152,10 +151,6 @@ out = run('#i2cfail 1\n#connect\n#wait 3000\nSTAT?\n#state\n#i2cfail 0\n#wait 15
 st = [x for t, d, x in out if d == '==']
 check('нет ответа ЦАП: BOOT, ±18 В выключено; после появления ЦАП старт',
       rx(out, 'STAT;BOOT') and 'pwr=0' in st[0] and rx(out, 'STAT;IDLE') and 'pwr=1' in st[1], out)
-
-# 14. Обычные реле диапазонов (7 линий)
-out = run(BOOT + SEL.format(n=2) + 'RANGE;0\n' + T_CMD.format(rev=1) + '#until DONE 60000\n', sim=SIM7)
-check('обычные реле диапазонов: проходная без нарушений', len(rx(out, 'DATA')) == 10, out)
 
 # 15. n-тип
 out = run(BOOT + SEL.format(n=4) + 'TRANS;n;5.0000;0.0000;15.0000;5.0000;200;100;1.0000E-03;0\n#until DONE 60000\n',

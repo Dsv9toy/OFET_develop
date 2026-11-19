@@ -24,7 +24,7 @@ __pycache__/
 
 # Симулятор прошивки
 firmware/host_sim/ofet_sim
-firmware/host_sim/ofet_sim_relay7
+firmware/host_sim/ofet_sim_bist
 
 # Portable-версия программы ПК (создаётся при сборке Release)
 OfetMeter_portable/

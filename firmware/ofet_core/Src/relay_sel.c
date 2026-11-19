@@ -4,7 +4,9 @@
 #include "ofet_hw.h"
 
 /* Группа g (0 = реле 1 и 4, 1 = реле 2, 2 = реле 3): канал SET = 2g+1, RESET = 2g+2. */
-/* Требуемые состояния групп: 'A' = после RESET, 'B' = после SET, '-' = не важно. */
+/* Требуемые состояния групп: 'A' = после RESET (моностабильное: обесточено),
+ * 'B' = после SET (моностабильное: обмотка под напряжением), '-' = не важно
+ * (моностабильное реле в этом случае обесточиваем: меньше тока и нагрева в камере). */
 static const char k_table[5][3] = {
     { 'A', 'A', '-' },  /* 1 */
     { 'B', 'A', '-' },  /* 2 */
@@ -20,19 +22,48 @@ static enum { S_IDLE, S_PULSE, S_GAP, S_SETTLE } s_state;
 static uint32_t s_t0;
 static int s_ch;
 
-static void push(int ch)
+static inline void push(int ch)
 {
     if (s_qn < QMAX)
         s_queue[s_qn++] = ch;
 }
 
-static void start_if_idle(void)
+static inline void start_if_idle(void)
 {
     if (s_state == S_IDLE && s_qi < s_qn) {
         s_state = S_GAP;            /* первый импульс начнётся в poll */
         s_t0 = hw_millis() - OFET_RELAY_GAP_MS;
     }
 }
+
+#if !OFET_SEL_BISTABLE
+/* Моностабильные реле: сразу выставить уровни на линиях SET, линии RESET всегда 0. */
+static void apply_levels(int n)
+{
+    for (int g = 0; g < 3; ++g) {
+        const bool on = n > 0 && k_table[n - 1][g] == 'B';
+        hw_sel_line(2 * g + 2, false);
+        hw_sel_line(2 * g + 1, on);
+    }
+    s_qn = s_qi = 0;
+    s_state = S_SETTLE;             /* пауза 200 мс на срабатывание и дребезг */
+    s_t0 = hw_millis();
+}
+
+void relay_sel_init(void)
+{
+    apply_levels(0);                /* все обесточены = положение A */
+}
+
+bool relay_sel_select(int n)
+{
+    if (n < 1 || n > 5)
+        return false;
+    apply_levels(n);
+    return true;
+}
+
+#else /* бистабильные */
 
 void relay_sel_init(void)
 {
@@ -60,6 +91,8 @@ bool relay_sel_select(int n)
     start_if_idle();
     return true;
 }
+
+#endif
 
 bool relay_sel_busy(void)
 {
